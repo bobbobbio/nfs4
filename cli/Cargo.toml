@@ -1,0 +1,9 @@
+[package]
+name = "nfs4_cli"
+version = "0.1.0"
+authors = ["Remi Bernotavicius <remi@.abort.cc>"]
+edition = "2021"
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+sun_rpc = { version = "*", path = "../sun_rpc" }
