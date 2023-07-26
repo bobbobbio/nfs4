@@ -1,6 +1,20 @@
 // Copyright 2023 Remi Bernotavicius
 
-fn main() {
-    println!("adding 2 and 3: {}", sun_rpc::add(2, 3));
-    println!("hello world from {}", file!());
+use clap::Parser;
+use std::net::TcpStream;
+use sun_rpc::Result;
+
+#[derive(Parser)]
+struct Options {
+    host: String,
+    #[clap(default_value_t = sun_rpc::PORT_MAPPER_PORT)]
+    port: u16,
+}
+
+fn main() -> Result<()> {
+    let opts = Options::parse();
+
+    let mut transport = TcpStream::connect((opts.host, opts.port))?;
+    sun_rpc::do_ping(&mut transport)?;
+    Ok(())
 }
