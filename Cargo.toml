@@ -17,4 +17,6 @@ resolver = "2"
 members = [
     "cli",
     "sun_rpc",
+    "vm_runner",
+    "vm_test_fixture",
 ]

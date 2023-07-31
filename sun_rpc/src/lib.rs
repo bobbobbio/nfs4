@@ -8,7 +8,7 @@ use std::{fmt, io};
 struct Xid(u32);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
-struct Message<Args> {
+pub struct Message<Args> {
     xid: Xid,
     body: MessageBody<Args>,
 }
@@ -131,7 +131,7 @@ impl<T> Transport for T where T: io::Read + io::Write {}
 const PORT_MAPPER: u32 = 100000;
 pub const PORT_MAPPER_PORT: u16 = 111;
 
-pub fn do_ping(mut transport: &mut impl Transport) -> Result<()> {
+pub fn do_ping(mut transport: &mut impl Transport) -> Result<Message<()>> {
     let message = Message {
         xid: Xid(1),
         body: MessageBody::Call(CallBody {
@@ -157,7 +157,31 @@ pub fn do_ping(mut transport: &mut impl Transport) -> Result<()> {
     let reply: Message<()> =
         serde_xdr::from_reader(&mut io::Read::take(&mut transport, length as u64))?;
 
-    println!("{reply:#?}");
+    Ok(reply)
+}
 
-    Ok(())
+#[test]
+fn ping() {
+    vm_test_fixture::fixture(|m| {
+        let port = m
+            .forwarded_ports()
+            .iter()
+            .find(|p| p.guest == PORT_MAPPER_PORT)
+            .unwrap();
+        let mut transport = std::net::TcpStream::connect(("127.0.0.1", port.host)).unwrap();
+        let reply = do_ping(&mut transport).unwrap();
+        assert_eq!(
+            reply,
+            Message {
+                xid: Xid(1),
+                body: MessageBody::Reply(ReplyBody::Accepted(AcceptedReply {
+                    verifier: OpaqueAuth {
+                        flavor: AuthFlavor::None,
+                        body: vec![],
+                    },
+                    body: AcceptedReplyBody::Success(()),
+                })),
+            }
+        );
+    });
 }

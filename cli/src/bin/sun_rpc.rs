@@ -15,6 +15,8 @@ fn main() -> Result<()> {
     let opts = Options::parse();
 
     let mut transport = TcpStream::connect((opts.host, opts.port))?;
-    sun_rpc::do_ping(&mut transport)?;
+    let reply = sun_rpc::do_ping(&mut transport)?;
+    println!("{reply:#?}");
+
     Ok(())
 }

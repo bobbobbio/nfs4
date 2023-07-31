@@ -9,3 +9,6 @@ edition = "2021"
 derive_more = "*"
 serde-xdr = "*"
 serde = { version = "*", features = ["derive"] }
+
+[dev-dependencies]
+vm_test_fixture = { version = "*", path = "../vm_test_fixture" }
