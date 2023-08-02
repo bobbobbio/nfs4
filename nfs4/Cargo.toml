@@ -1,15 +1,14 @@
 [package]
-name = "sun_rpc"
+name = "nfs4"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-derive_more = "*"
-serde-xdr = "*"
+bitflags = "*"
+bitflags_serde_shim = "*"
+num_enum = "*"
 serde = { version = "*", features = ["derive"] }
+serde_bytes = "*"
 xdr-extras = { version = "*", path = "../xdr-extras" }
-
-[dev-dependencies]
-vm_test_fixture = { version = "*", path = "../vm_test_fixture" }

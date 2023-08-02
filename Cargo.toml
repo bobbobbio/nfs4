@@ -16,7 +16,9 @@ panic = "abort"
 resolver = "2"
 members = [
     "cli",
+    "nfs4",
     "sun_rpc",
     "vm_runner",
     "vm_test_fixture",
+    "xdr-extras",
 ]

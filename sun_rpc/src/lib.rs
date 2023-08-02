@@ -3,6 +3,7 @@
 use derive_more::From;
 use serde::{Deserialize, Serialize};
 use std::{fmt, io};
+use xdr_extras::{DeserializeWithDiscriminant, SerializeWithDiscriminant};
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
 struct Xid(u32);
@@ -41,11 +42,17 @@ struct CallBody<CallArgsT> {
     call_args: CallArgsT,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(
+    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+)]
+#[repr(u32)]
 enum AcceptedReplyBody<ReturnArgsT> {
-    Success(ReturnArgsT),
-    ProgramMismatch { low: u32, high: u32 },
-    Default,
+    Success(ReturnArgsT) = 0,
+    ProgramUnavailable = 1,
+    ProgramMismatch { low: u32, high: u32 } = 2,
+    ProcedureUnavailable = 3,
+    GarbageArguments = 4,
+    SystemError = 5,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -54,7 +61,9 @@ struct AcceptedReply<ReturnArgsT> {
     body: AcceptedReplyBody<ReturnArgsT>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(
+    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+)]
 #[repr(u32)]
 enum AuthFlavor {
     None = 0,
@@ -79,7 +88,10 @@ impl OpaqueAuth {
     }
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(
+    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+)]
+#[repr(u32)]
 enum AuthStat {
     Ok = 0, /* success */
     /*
@@ -97,22 +109,31 @@ enum AuthStat {
     Failed = 7,      /* reason unknown                 */
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(
+    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+)]
+#[repr(u32)]
 enum RejectedReply {
-    RpcMismatch { low: u32, high: u32 },
-    AuthError(AuthStat),
+    RpcMismatch { low: u32, high: u32 } = 0,
+    AuthError(AuthStat) = 1,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(
+    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+)]
+#[repr(u32)]
 enum ReplyBody<ReturnArgsT> {
-    Accepted(AcceptedReply<ReturnArgsT>),
-    Denied(RejectedReply),
+    Accepted(AcceptedReply<ReturnArgsT>) = 0,
+    Denied(RejectedReply) = 1,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(
+    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+)]
+#[repr(u32)]
 enum MessageBody<Args> {
-    Call(CallBody<Args>),
-    Reply(ReplyBody<Args>),
+    Call(CallBody<Args>) = 0,
+    Reply(ReplyBody<Args>) = 1,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
