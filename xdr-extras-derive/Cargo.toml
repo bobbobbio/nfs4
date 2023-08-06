@@ -1,17 +1,19 @@
 [package]
-name = "nfs4"
+name = "xdr-extras-derive"
 version = "0.1.0"
 edition = "2021"
+
+[lib]
+proc-macro = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bitflags = "*"
-bitflags_serde_shim = "*"
-derive_more = "*"
-num_enum = "*"
-serde = { version = "*", features = ["derive"] }
+proc-macro2 = "*"
+syn = { version = "^2", features = ["full"] }
+quote = "*"
+
+[dev-dependencies]
+serde = "*"
 serde-xdr = "*"
-serde_bytes = "*"
-sun_rpc = { version = "*", path = "../sun_rpc" }
 xdr-extras = { version = "*", path = "../xdr-extras" }

@@ -2,24 +2,30 @@
 
 use bitflags::bitflags;
 use bitflags_serde_shim::impl_serde_for_bitflags;
-use num_enum::TryFromPrimitive;
+pub use enum_map::{EnumMap, EnumSet, ToId};
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{
     de::Deserializer,
     ser::{SerializeStruct as _, Serializer},
     Deserialize, Serialize,
 };
+use sun_rpc::{AuthFlavor, AuthSysParameters};
 use xdr_extras::{DeserializeWithDiscriminant, SerializeWithDiscriminant};
 
+mod enum_map;
+
+pub type FileAttributes = EnumMap<FileAttributeId, FileAttribute>;
+
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct CompoundArgs {
-    tag: String,
-    minor_version: u32,
-    arg_array: Vec<ArgOp>,
+pub struct CompoundArgs {
+    pub tag: String,
+    pub minor_version: u32,
+    pub arg_array: Vec<ArgOp>,
 }
 
 bitflags! {
     #[derive(PartialEq, Eq, Copy, Clone, Debug)]
-    struct Access: u32 {
+    pub struct Access: u32 {
         const READ      = 0x00000001;
         const LOOKUP    = 0x00000002;
         const MODIFY    = 0x00000004;
@@ -32,72 +38,95 @@ bitflags! {
 impl_serde_for_bitflags!(Access);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct AccessArgs {
-    access: Access,
+pub struct AccessArgs {
+    pub access: Access,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-struct StateId {
-    sequence_id: u32,
-    other: [u8; 12],
+pub struct StateId {
+    pub sequence_id: u32,
+    pub other: [u8; 12],
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-struct SequenceId(u32);
+pub struct SequenceId(pub u32);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct CloseArgs {
-    sequence_id: SequenceId,
-    open_stateid: StateId,
+pub struct CloseArgs {
+    pub sequence_id: SequenceId,
+    pub open_stateid: StateId,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct CommitArgs {
-    offset: u64,
-    count: u32,
+pub struct CommitArgs {
+    pub offset: u64,
+    pub count: u32,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct DeviceData {
-    major: u32,
-    minor: u32,
+pub struct DeviceData {
+    pub major: u32,
+    pub minor: u32,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct RetentionGet {
-    duration: u64,
-    begin_time: Option<Time>,
+pub struct RetentionGet {
+    pub duration: u64,
+    pub begin_time: Option<Time>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct RetentionSet {
-    enable: bool,
-    duration: Option<u64>,
+pub struct RetentionSet {
+    pub enable: bool,
+    pub duration: Option<u64>,
 }
 
 #[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
 #[repr(u32)]
-enum SetTime {
+pub enum SetTime {
     SetToClientTime(Time) = 0,
     SetToServerTime = 1,
 }
 
 #[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
 #[repr(u32)]
-enum FileType {
-    Link(String) = 0,
-    Block = 1,
-    Character(DeviceData) = 2,
-    Socket = 3,
-    Fifo = 4,
-    Directory = 5,
+pub enum FileType {
+    Regular = 1,
+    Directory = 2,
+    Block = 3,
+    Character = 4,
+    Link = 5,
+    Socket = 6,
+    Fifo = 7,
+    AttrDir = 8,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum CreateType {
+    Directory = 2,
+    Block = 3,
+    Character(DeviceData) = 4,
+    Link(String) = 5,
+    Socket = 6,
+    Fifo = 7,
 }
 
 #[derive(
-    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Copy, Clone, Debug,
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    PartialEq,
+    Eq,
+    Copy,
+    Clone,
+    PartialOrd,
+    Ord,
+    Debug,
+    TryFromPrimitive,
+    IntoPrimitive,
 )]
 #[repr(u32)]
-enum AttributeId {
+pub enum FileAttributeId {
     SupportedAttrs = 0,
     Type = 1,
     FhExpireType = 2,
@@ -106,10 +135,10 @@ enum AttributeId {
     LinkSupport = 5,
     SymlinkSupport = 6,
     NamedAttr = 7,
-    Fsid = 8,
+    FsId = 8,
     UniqueHandles = 9,
     LeaseTime = 10,
-    RdattrError = 11,
+    ReadDirAttrError = 11,
     Acl = 12,
     AclSupport = 13,
     Archive = 14,
@@ -132,7 +161,7 @@ enum AttributeId {
     MimeType = 32,
     Mode = 33,
     NoTrunc = 34,
-    Numlinks = 35,
+    NumLinks = 35,
     Owner = 36,
     OwnerGroup = 37,
     QuotaAvailHard = 38,
@@ -177,22 +206,22 @@ enum AttributeId {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-struct FsId {
-    major: u64,
-    minor: u64,
+pub struct FsId {
+    pub major: u64,
+    pub minor: u64,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct FileHandle(#[serde(with = "serde_bytes")] Vec<u8>);
+pub struct FileHandle(#[serde(with = "serde_bytes")] pub Vec<u8>);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct Identity(String);
+pub struct Identity(pub String);
 
 #[derive(
     SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Copy, Clone, Debug,
 )]
 #[repr(u32)]
-enum AceType {
+pub enum AceType {
     AccessAllowed = 0,
     AccessDenied = 1,
     SystemAudit = 2,
@@ -201,7 +230,7 @@ enum AceType {
 
 bitflags! {
     #[derive(PartialEq, Eq, Copy, Clone, Debug)]
-    struct AceFlags: u32 {
+    pub struct AceFlags: u32 {
         const FILE_INHERIT_ACE             = 0x00000001;
         const DIRECTORY_INHERIT_ACE        = 0x00000002;
         const NO_PROPAGATE_INHERIT_ACE     = 0x00000004;
@@ -217,7 +246,7 @@ impl_serde_for_bitflags!(AceFlags);
 
 bitflags! {
     #[derive(PartialEq, Eq, Copy, Clone, Debug)]
-    struct AceMask: u32 {
+    pub struct AceMask: u32 {
         const READ_DATA            = 0x00000001;
         const LIST_DIRECTORY       = 0x00000001;
         const WRITE_DATA           = 0x00000002;
@@ -244,21 +273,21 @@ bitflags! {
 impl_serde_for_bitflags!(AceMask);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct Ace {
-    type_: AceType,
-    flags: AceFlags,
-    access_mask: AceMask,
-    who: Identity,
+pub struct Ace {
+    pub type_: AceType,
+    pub flags: AceFlags,
+    pub access_mask: AceMask,
+    pub who: Identity,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct Acl {
-    aces: Vec<Ace>,
+pub struct Acl {
+    pub aces: Vec<Ace>,
 }
 
 bitflags! {
     #[derive(PartialEq, Eq, Copy, Clone, Debug)]
-    struct AclFlags: u32 {
+    pub struct AclFlags: u32 {
         const AUTO_INHERIT         = 0x00000001;
         const PROTECTED            = 0x00000002;
         const DEFAULTED            = 0x00000004;
@@ -268,24 +297,24 @@ bitflags! {
 impl_serde_for_bitflags!(AclFlags);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct AclWithFlags {
-    flags: AclFlags,
+pub struct AclWithFlags {
+    pub flags: AclFlags,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct ChangePolicy(u32);
+pub struct ChangePolicy(u32);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-struct Time {
-    seconds: i64,
-    nseconds: u32,
+pub struct Time {
+    pub seconds: i64,
+    pub nseconds: u32,
 }
 
 #[derive(
     SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Copy, Clone, Debug,
 )]
 #[repr(u32)]
-enum LayoutType {
+pub enum LayoutType {
     NfsV41Files = 1,
     Osd2Objects = 2,
     BlockVolume = 3,
@@ -301,7 +330,7 @@ enum LayoutType {
     Debug,
 )]
 #[repr(u32)]
-enum StatusError {
+pub enum StatusError {
     Perm = 1,
     NoEnt = 2,
     Io = 5,
@@ -407,26 +436,26 @@ enum StatusError {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct Component(String);
+pub struct Component(String);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct PathName(Vec<Component>);
+pub struct PathName(Vec<Component>);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct FsLocation {
-    server: Vec<String>,
-    root_path: PathName,
+pub struct FsLocation {
+    pub server: Vec<String>,
+    pub root_path: PathName,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct FsLocations {
-    fs_root: PathName,
-    locations: Vec<FsLocation>,
+pub struct FsLocations {
+    pub fs_root: PathName,
+    pub locations: Vec<FsLocation>,
 }
 
 bitflags! {
     #[derive(PartialEq, Eq, Copy, Clone, Debug)]
-    struct FsLocationsInfoFlags: u32 {
+    pub struct FsLocationsInfoFlags: u32 {
         const VAR_SUB = 0x00000001;
     }
 }
@@ -434,30 +463,30 @@ bitflags! {
 impl_serde_for_bitflags!(FsLocationsInfoFlags);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct FsLocationsServer {
-    currency: i32,
+pub struct FsLocationsServer {
+    pub currency: i32,
     #[serde(with = "serde_bytes")]
-    info: Vec<u8>,
-    server: String,
+    pub info: Vec<u8>,
+    pub server: String,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct FsLocationsItem {
-    entries: Vec<FsLocationsServer>,
-    root_path: PathName,
+pub struct FsLocationsItem {
+    pub entries: Vec<FsLocationsServer>,
+    pub root_path: PathName,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct FsLocationsInfo {
-    flags: FsLocationsInfoFlags,
-    valid_for: i32,
-    fs_root: PathName,
-    items: Vec<FsLocationsItem>,
+pub struct FsLocationsInfo {
+    pub flags: FsLocationsInfoFlags,
+    pub valid_for: i32,
+    pub fs_root: PathName,
+    pub items: Vec<FsLocationsItem>,
 }
 
 #[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
 #[repr(u32)]
-enum FsStatusType {
+pub enum FsStatusType {
     Fixed = 1,
     Updated = 2,
     Versioned = 3,
@@ -466,25 +495,37 @@ enum FsStatusType {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct FsStatus {
-    absent: bool,
-    type_: FsStatusType,
-    source: String,
-    current: String,
-    age: i32,
-    version: Time,
+pub struct FsStatus {
+    pub absent: bool,
+    pub type_: FsStatusType,
+    pub source: String,
+    pub current: String,
+    pub age: i32,
+    pub version: Time,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct LayoutHint {
-    type_: LayoutType,
+pub struct LayoutHint {
+    pub type_: LayoutType,
     #[serde(with = "serde_bytes")]
-    body: Vec<u8>,
+    pub body: Vec<u8>,
 }
 
-#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[derive(
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    PartialEq,
+    Eq,
+    Copy,
+    Clone,
+    PartialOrd,
+    Ord,
+    Debug,
+    TryFromPrimitive,
+    IntoPrimitive,
+)]
 #[repr(u32)]
-enum ThresholdAttributeId {
+pub enum ThresholdAttributeId {
     ReadSize = 0,
     WriteSize = 1,
     ReadIoSize = 2,
@@ -493,7 +534,7 @@ enum ThresholdAttributeId {
 
 #[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
 #[repr(u32)]
-enum ThresholdAttribute {
+pub enum ThresholdAttribute {
     ReadSize(u32) = ThresholdAttributeId::ReadSize as u32,
     WriteSize(u32) = ThresholdAttributeId::WriteSize as u32,
     ReadIoSize(u32) = ThresholdAttributeId::ReadIoSize as u32,
@@ -501,39 +542,24 @@ enum ThresholdAttribute {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct ThresholdItem {
-    layout_type: LayoutType,
-    hintset: BitMap<ThresholdAttributeId, ThresholdAttribute>,
+pub struct ThresholdItem {
+    pub layout_type: LayoutType,
+    pub hintset: EnumMap<ThresholdAttributeId, ThresholdAttribute>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct MdsThreshold {
+pub struct MdsThreshold {
     hints: Vec<ThresholdItem>,
 }
 
-// TODO
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct BitMap<K, V> {
-    phantom_data: std::marker::PhantomData<(K, V)>,
-    map: Vec<u32>,
-    #[serde(with = "serde_bytes")]
-    body: Vec<u8>,
-}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct BitSet<K> {
-    phantom_data: std::marker::PhantomData<K>,
-    map: Vec<u32>,
-}
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct Mode(pub u32);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-struct Mode(u32);
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-struct ModeMasked(u32);
+pub struct ModeMasked(pub u32);
 
 #[derive(PartialEq, Eq, Clone, Debug)]
-enum StatusResult<T> {
+pub enum StatusResult<T> {
     Ok(T),
     Err(StatusError),
 }
@@ -605,289 +631,959 @@ where
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-struct Lease(u32);
+pub struct Lease(pub u32);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct Change(pub u64);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct FileId(pub u64);
 
 #[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
 #[repr(u32)]
-enum Attribute {
-    SupportedAttrs(BitSet<AttributeId>) = AttributeId::SupportedAttrs as u32,
-    Type(FileType) = AttributeId::Type as u32,
-    FhExpireType(u32) = AttributeId::FhExpireType as u32,
-    Change(u64) = AttributeId::Change as u32,
-    Size(u64) = AttributeId::Size as u32,
-    LinkSupport(bool) = AttributeId::LinkSupport as u32,
-    SymlinkSupport(bool) = AttributeId::SymlinkSupport as u32,
-    NamedAttr(bool) = AttributeId::NamedAttr as u32,
-    Fsid(FsId) = AttributeId::Fsid as u32,
-    UniqueHandles(bool) = AttributeId::UniqueHandles as u32,
-    LeaseTime(Lease) = AttributeId::LeaseTime as u32,
-    RdattrError(StatusError) = AttributeId::RdattrError as u32,
-    Acl(Acl) = AttributeId::Acl as u32,
-    AclSupport(u32) = AttributeId::AclSupport as u32,
-    Archive(bool) = AttributeId::Archive as u32,
-    CanSetTime(bool) = AttributeId::CanSetTime as u32,
-    CaseInsensitive(bool) = AttributeId::CaseInsensitive as u32,
-    CasePreserving(bool) = AttributeId::CasePreserving as u32,
-    ChownRestricted(bool) = AttributeId::ChownRestricted as u32,
-    FileHandle(FileHandle) = AttributeId::FileHandle as u32,
-    FileId(u64) = AttributeId::FileId as u32,
-    FilesAvail(u64) = AttributeId::FilesAvail as u32,
-    FilesFree(u64) = AttributeId::FilesFree as u32,
-    FilesTotal(u64) = AttributeId::FilesTotal as u32,
-    FsLocations(FsLocations) = AttributeId::FsLocations as u32,
-    Homogeneous(bool) = AttributeId::Homogeneous as u32,
-    MaxFileSize(u64) = AttributeId::MaxFileSize as u32,
-    MaxLink(u32) = AttributeId::MaxLink as u32,
-    MaxName(u32) = AttributeId::MaxName as u32,
-    MaxRead(u64) = AttributeId::MaxRead as u32,
-    MaxWrite(u64) = AttributeId::MaxWrite as u32,
-    MimeType(String) = AttributeId::MimeType as u32,
-    Mode(Mode) = AttributeId::Mode as u32,
-    NoTrunc(bool) = AttributeId::NoTrunc as u32,
-    Numlinks(u32) = AttributeId::Numlinks as u32,
-    Owner(String) = AttributeId::Owner as u32,
-    OwnerGroup(String) = AttributeId::OwnerGroup as u32,
-    QuotaAvailHard(u64) = AttributeId::QuotaAvailHard as u32,
-    QuotaAvailSoft(u64) = AttributeId::QuotaAvailSoft as u32,
-    QuotaUsed(u64) = AttributeId::QuotaUsed as u32,
-    RawDev(DeviceData) = AttributeId::RawDev as u32,
-    SpaceAvail(u64) = AttributeId::SpaceAvail as u32,
-    SpaceFree(u64) = AttributeId::SpaceFree as u32,
-    SpaceTotal(u64) = AttributeId::SpaceTotal as u32,
-    SpaceUsed(u64) = AttributeId::SpaceUsed as u32,
-    System(bool) = AttributeId::System as u32,
-    TimeAccess(Time) = AttributeId::TimeAccess as u32,
-    TimeAccessSet(SetTime) = AttributeId::TimeAccessSet as u32,
-    TimeBackup(Time) = AttributeId::TimeBackup as u32,
-    TimeCreate(Time) = AttributeId::TimeCreate as u32,
-    TimeDelta(Time) = AttributeId::TimeDelta as u32,
-    TimeMetadata(Time) = AttributeId::TimeMetadata as u32,
-    TimeModify(Time) = AttributeId::TimeModify as u32,
-    TimeModifySet(SetTime) = AttributeId::TimeModifySet as u32,
-    MountedOnFileid(u64) = AttributeId::MountedOnFileid as u32,
-    DirNotifDelay(Time) = AttributeId::DirNotifDelay as u32,
-    DirentNotifDelay(Time) = AttributeId::DirentNotifDelay as u32,
-    Dacl(AclWithFlags) = AttributeId::Dacl as u32,
-    Sacl(AclWithFlags) = AttributeId::Sacl as u32,
-    ChangePolicy(ChangePolicy) = AttributeId::ChangePolicy as u32,
-    FsStatus(FsStatus) = AttributeId::FsStatus as u32,
-    FsLayoutType(Vec<LayoutType>) = AttributeId::FsLayoutType as u32,
-    LayoutHint(LayoutHint) = AttributeId::LayoutHint as u32,
-    LayoutType(Vec<LayoutType>) = AttributeId::LayoutType as u32,
-    LayoutBlksize(u32) = AttributeId::LayoutBlksize as u32,
-    LayoutAlignment(u32) = AttributeId::LayoutAlignment as u32,
-    FsLocationsInfo(FsLocationsInfo) = AttributeId::FsLocationsInfo as u32,
-    MdsThreshold(MdsThreshold) = AttributeId::MdsThreshold as u32,
-    RetentionGet(RetentionGet) = AttributeId::RetentionGet as u32,
-    RetentionSet(RetentionSet) = AttributeId::RetentionSet as u32,
-    RetentevtGet(RetentionGet) = AttributeId::RetentevtGet as u32,
-    RetentevtSet(RetentionSet) = AttributeId::RetentevtSet as u32,
-    RetentionHold(u64) = AttributeId::RetentionHold as u32,
-    ModeSetMasked(ModeMasked) = AttributeId::ModeSetMasked as u32,
-    SuppattrExclcreat(BitSet<AttributeId>) = AttributeId::SuppattrExclcreat as u32,
-    FsCharsetCap(u32) = AttributeId::FsCharsetCap as u32,
+pub enum FileAttribute {
+    SupportedAttrs(EnumSet<FileAttributeId>) = FileAttributeId::SupportedAttrs as u32,
+    Type(FileType) = FileAttributeId::Type as u32,
+    FhExpireType(u32) = FileAttributeId::FhExpireType as u32,
+    Change(Change) = FileAttributeId::Change as u32,
+    Size(u64) = FileAttributeId::Size as u32,
+    LinkSupport(bool) = FileAttributeId::LinkSupport as u32,
+    SymlinkSupport(bool) = FileAttributeId::SymlinkSupport as u32,
+    NamedAttr(bool) = FileAttributeId::NamedAttr as u32,
+    FsId(FsId) = FileAttributeId::FsId as u32,
+    UniqueHandles(bool) = FileAttributeId::UniqueHandles as u32,
+    LeaseTime(Lease) = FileAttributeId::LeaseTime as u32,
+    ReadDirAttrError(StatusResult<()>) = FileAttributeId::ReadDirAttrError as u32,
+    Acl(Acl) = FileAttributeId::Acl as u32,
+    AclSupport(u32) = FileAttributeId::AclSupport as u32,
+    Archive(bool) = FileAttributeId::Archive as u32,
+    CanSetTime(bool) = FileAttributeId::CanSetTime as u32,
+    CaseInsensitive(bool) = FileAttributeId::CaseInsensitive as u32,
+    CasePreserving(bool) = FileAttributeId::CasePreserving as u32,
+    ChownRestricted(bool) = FileAttributeId::ChownRestricted as u32,
+    FileHandle(FileHandle) = FileAttributeId::FileHandle as u32,
+    FileId(FileId) = FileAttributeId::FileId as u32,
+    FilesAvail(u64) = FileAttributeId::FilesAvail as u32,
+    FilesFree(u64) = FileAttributeId::FilesFree as u32,
+    FilesTotal(u64) = FileAttributeId::FilesTotal as u32,
+    FsLocations(FsLocations) = FileAttributeId::FsLocations as u32,
+    Homogeneous(bool) = FileAttributeId::Homogeneous as u32,
+    MaxFileSize(u64) = FileAttributeId::MaxFileSize as u32,
+    MaxLink(u32) = FileAttributeId::MaxLink as u32,
+    MaxName(u32) = FileAttributeId::MaxName as u32,
+    MaxRead(u64) = FileAttributeId::MaxRead as u32,
+    MaxWrite(u64) = FileAttributeId::MaxWrite as u32,
+    MimeType(String) = FileAttributeId::MimeType as u32,
+    Mode(Mode) = FileAttributeId::Mode as u32,
+    NoTrunc(bool) = FileAttributeId::NoTrunc as u32,
+    NumLinks(u32) = FileAttributeId::NumLinks as u32,
+    Owner(String) = FileAttributeId::Owner as u32,
+    OwnerGroup(String) = FileAttributeId::OwnerGroup as u32,
+    QuotaAvailHard(u64) = FileAttributeId::QuotaAvailHard as u32,
+    QuotaAvailSoft(u64) = FileAttributeId::QuotaAvailSoft as u32,
+    QuotaUsed(u64) = FileAttributeId::QuotaUsed as u32,
+    RawDev(DeviceData) = FileAttributeId::RawDev as u32,
+    SpaceAvail(u64) = FileAttributeId::SpaceAvail as u32,
+    SpaceFree(u64) = FileAttributeId::SpaceFree as u32,
+    SpaceTotal(u64) = FileAttributeId::SpaceTotal as u32,
+    SpaceUsed(u64) = FileAttributeId::SpaceUsed as u32,
+    System(bool) = FileAttributeId::System as u32,
+    TimeAccess(Time) = FileAttributeId::TimeAccess as u32,
+    TimeAccessSet(SetTime) = FileAttributeId::TimeAccessSet as u32,
+    TimeBackup(Time) = FileAttributeId::TimeBackup as u32,
+    TimeCreate(Time) = FileAttributeId::TimeCreate as u32,
+    TimeDelta(Time) = FileAttributeId::TimeDelta as u32,
+    TimeMetadata(Time) = FileAttributeId::TimeMetadata as u32,
+    TimeModify(Time) = FileAttributeId::TimeModify as u32,
+    TimeModifySet(SetTime) = FileAttributeId::TimeModifySet as u32,
+    MountedOnFileid(FileId) = FileAttributeId::MountedOnFileid as u32,
+    DirNotifDelay(Time) = FileAttributeId::DirNotifDelay as u32,
+    DirentNotifDelay(Time) = FileAttributeId::DirentNotifDelay as u32,
+    Dacl(AclWithFlags) = FileAttributeId::Dacl as u32,
+    Sacl(AclWithFlags) = FileAttributeId::Sacl as u32,
+    ChangePolicy(ChangePolicy) = FileAttributeId::ChangePolicy as u32,
+    FsStatus(FsStatus) = FileAttributeId::FsStatus as u32,
+    FsLayoutType(Vec<LayoutType>) = FileAttributeId::FsLayoutType as u32,
+    LayoutHint(LayoutHint) = FileAttributeId::LayoutHint as u32,
+    LayoutType(Vec<LayoutType>) = FileAttributeId::LayoutType as u32,
+    LayoutBlksize(u32) = FileAttributeId::LayoutBlksize as u32,
+    LayoutAlignment(u32) = FileAttributeId::LayoutAlignment as u32,
+    FsLocationsInfo(FsLocationsInfo) = FileAttributeId::FsLocationsInfo as u32,
+    MdsThreshold(MdsThreshold) = FileAttributeId::MdsThreshold as u32,
+    RetentionGet(RetentionGet) = FileAttributeId::RetentionGet as u32,
+    RetentionSet(RetentionSet) = FileAttributeId::RetentionSet as u32,
+    RetentevtGet(RetentionGet) = FileAttributeId::RetentevtGet as u32,
+    RetentevtSet(RetentionSet) = FileAttributeId::RetentevtSet as u32,
+    RetentionHold(u64) = FileAttributeId::RetentionHold as u32,
+    ModeSetMasked(ModeMasked) = FileAttributeId::ModeSetMasked as u32,
+    SuppattrExclcreat(EnumSet<FileAttributeId>) = FileAttributeId::SuppattrExclcreat as u32,
+    FsCharsetCap(u32) = FileAttributeId::FsCharsetCap as u32,
+}
+
+impl ToId<FileAttributeId> for FileAttribute {
+    fn to_id(&self) -> FileAttributeId {
+        match self {
+            Self::SupportedAttrs(..) => FileAttributeId::SupportedAttrs,
+            Self::Type(..) => FileAttributeId::Type,
+            Self::FhExpireType(..) => FileAttributeId::FhExpireType,
+            Self::Change(..) => FileAttributeId::Change,
+            Self::Size(..) => FileAttributeId::Size,
+            Self::LinkSupport(..) => FileAttributeId::LinkSupport,
+            Self::SymlinkSupport(..) => FileAttributeId::SymlinkSupport,
+            Self::NamedAttr(..) => FileAttributeId::NamedAttr,
+            Self::FsId(..) => FileAttributeId::FsId,
+            Self::UniqueHandles(..) => FileAttributeId::UniqueHandles,
+            Self::LeaseTime(..) => FileAttributeId::LeaseTime,
+            Self::ReadDirAttrError(..) => FileAttributeId::ReadDirAttrError,
+            Self::Acl(..) => FileAttributeId::Acl,
+            Self::AclSupport(..) => FileAttributeId::AclSupport,
+            Self::Archive(..) => FileAttributeId::Archive,
+            Self::CanSetTime(..) => FileAttributeId::CanSetTime,
+            Self::CaseInsensitive(..) => FileAttributeId::CaseInsensitive,
+            Self::CasePreserving(..) => FileAttributeId::CasePreserving,
+            Self::ChownRestricted(..) => FileAttributeId::ChownRestricted,
+            Self::FileHandle(..) => FileAttributeId::FileHandle,
+            Self::FileId(..) => FileAttributeId::FileId,
+            Self::FilesAvail(..) => FileAttributeId::FilesAvail,
+            Self::FilesFree(..) => FileAttributeId::FilesFree,
+            Self::FilesTotal(..) => FileAttributeId::FilesTotal,
+            Self::FsLocations(..) => FileAttributeId::FsLocations,
+            Self::Homogeneous(..) => FileAttributeId::Homogeneous,
+            Self::MaxFileSize(..) => FileAttributeId::MaxFileSize,
+            Self::MaxLink(..) => FileAttributeId::MaxLink,
+            Self::MaxName(..) => FileAttributeId::MaxName,
+            Self::MaxRead(..) => FileAttributeId::MaxRead,
+            Self::MaxWrite(..) => FileAttributeId::MaxWrite,
+            Self::MimeType(..) => FileAttributeId::MimeType,
+            Self::Mode(..) => FileAttributeId::Mode,
+            Self::NoTrunc(..) => FileAttributeId::NoTrunc,
+            Self::NumLinks(..) => FileAttributeId::NumLinks,
+            Self::Owner(..) => FileAttributeId::Owner,
+            Self::OwnerGroup(..) => FileAttributeId::OwnerGroup,
+            Self::QuotaAvailHard(..) => FileAttributeId::QuotaAvailHard,
+            Self::QuotaAvailSoft(..) => FileAttributeId::QuotaAvailSoft,
+            Self::QuotaUsed(..) => FileAttributeId::QuotaUsed,
+            Self::RawDev(..) => FileAttributeId::RawDev,
+            Self::SpaceAvail(..) => FileAttributeId::SpaceAvail,
+            Self::SpaceFree(..) => FileAttributeId::SpaceFree,
+            Self::SpaceTotal(..) => FileAttributeId::SpaceTotal,
+            Self::SpaceUsed(..) => FileAttributeId::SpaceUsed,
+            Self::System(..) => FileAttributeId::System,
+            Self::TimeAccess(..) => FileAttributeId::TimeAccess,
+            Self::TimeAccessSet(..) => FileAttributeId::TimeAccessSet,
+            Self::TimeBackup(..) => FileAttributeId::TimeBackup,
+            Self::TimeCreate(..) => FileAttributeId::TimeCreate,
+            Self::TimeDelta(..) => FileAttributeId::TimeDelta,
+            Self::TimeMetadata(..) => FileAttributeId::TimeMetadata,
+            Self::TimeModify(..) => FileAttributeId::TimeModify,
+            Self::TimeModifySet(..) => FileAttributeId::TimeModifySet,
+            Self::MountedOnFileid(..) => FileAttributeId::MountedOnFileid,
+            Self::DirNotifDelay(..) => FileAttributeId::DirNotifDelay,
+            Self::DirentNotifDelay(..) => FileAttributeId::DirentNotifDelay,
+            Self::Dacl(..) => FileAttributeId::Dacl,
+            Self::Sacl(..) => FileAttributeId::Sacl,
+            Self::ChangePolicy(..) => FileAttributeId::ChangePolicy,
+            Self::FsStatus(..) => FileAttributeId::FsStatus,
+            Self::FsLayoutType(..) => FileAttributeId::FsLayoutType,
+            Self::LayoutHint(..) => FileAttributeId::LayoutHint,
+            Self::LayoutType(..) => FileAttributeId::LayoutType,
+            Self::LayoutBlksize(..) => FileAttributeId::LayoutBlksize,
+            Self::LayoutAlignment(..) => FileAttributeId::LayoutAlignment,
+            Self::FsLocationsInfo(..) => FileAttributeId::FsLocationsInfo,
+            Self::MdsThreshold(..) => FileAttributeId::MdsThreshold,
+            Self::RetentionGet(..) => FileAttributeId::RetentionGet,
+            Self::RetentionSet(..) => FileAttributeId::RetentionSet,
+            Self::RetentevtGet(..) => FileAttributeId::RetentevtGet,
+            Self::RetentevtSet(..) => FileAttributeId::RetentevtSet,
+            Self::RetentionHold(..) => FileAttributeId::RetentionHold,
+            Self::ModeSetMasked(..) => FileAttributeId::ModeSetMasked,
+            Self::SuppattrExclcreat(..) => FileAttributeId::SuppattrExclcreat,
+            Self::FsCharsetCap(..) => FileAttributeId::FsCharsetCap,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct CreateArgs {
-    object_type: FileType,
-    object_name: String,
-    create_attrs: BitMap<AttributeId, Attribute>,
+pub struct CreateArgs {
+    pub object_type: CreateType,
+    pub object_name: String,
+    pub create_attrs: FileAttributes,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct ClientId(pub u64);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct DelegPurgeArgs {
+    pub client_id: ClientId,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct DelegpurgeArgs {/* todo */}
+pub struct DelegReturnArgs {
+    pub state_id: StateId,
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct DelegreturnArgs {/* todo */}
+pub struct GetAttrArgs {
+    attr_request: FileAttributes,
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct GetattrArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct GetfhArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct LinkArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct LockArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct LocktArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct LockuArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct LookupArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct LookuppArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct NverifyArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct OpenArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct OpenattrArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct OpenDowngradeArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct PutfhArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct PutpubfhArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct PutrootfhArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct ReadArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct ReaddirArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct ReadlinkArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct RemoveArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct RenameArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct RestorefhArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct SavefhArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct SecinfoArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct SetattrArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct VerifyArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct WriteArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct BackchannelCtlArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct BindConnToSessionArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct ExchangeIdArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct CreateSessionArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct DestroySessionArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct FreeStateidArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct GetDirDelegationArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct GetdeviceinfoArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct GetdevicelistArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct LayoutcommitArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct LayoutgetArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct LayoutreturnArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct SecinfoNoNameArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct SequenceArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct SetSsvArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct TestStateidArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct WantDelegationArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct DestroyClientidArgs {/* todo */}
-
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-struct ReclaimCompleteArgs {/* todo */}
+pub struct LinkArgs {
+    pub new_name: String,
+}
 
 #[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
 #[repr(u32)]
-enum ArgOp {
-    Access(AccessArgs) = 3,
-    Close(CloseArgs) = 4,
-    Commit(CommitArgs) = 5,
-    Create(CreateArgs) = 6,
-    Delegpurge(DelegpurgeArgs) = 7,
-    Delegreturn(DelegreturnArgs) = 8,
-    Getattr(GetattrArgs) = 9,
-    Getfh(GetfhArgs) = 10,
-    Link(LinkArgs) = 11,
-    Lock(LockArgs) = 12,
-    Lockt(LocktArgs) = 13,
-    Locku(LockuArgs) = 14,
-    Lookup(LookupArgs) = 15,
-    Lookupp(LookuppArgs) = 16,
-    Nverify(NverifyArgs) = 17,
-    Open(OpenArgs) = 18,
-    Openattr(OpenattrArgs) = 19,
-    OpenDowngrade(OpenDowngradeArgs) = 21,
-    Putfh(PutfhArgs) = 22,
-    Putpubfh(PutpubfhArgs) = 23,
-    Putrootfh(PutrootfhArgs) = 24,
-    Read(ReadArgs) = 25,
-    Readdir(ReaddirArgs) = 26,
-    Readlink(ReadlinkArgs) = 27,
-    Remove(RemoveArgs) = 28,
-    Rename(RenameArgs) = 29,
-    Restorefh(RestorefhArgs) = 31,
-    Savefh(SavefhArgs) = 32,
-    Secinfo(SecinfoArgs) = 33,
-    Setattr(SetattrArgs) = 34,
-    Verify(VerifyArgs) = 37,
-    Write(WriteArgs) = 38,
-    BackchannelCtl(BackchannelCtlArgs) = 40,
-    BindConnToSession(BindConnToSessionArgs) = 41,
-    ExchangeId(ExchangeIdArgs) = 42,
-    CreateSession(CreateSessionArgs) = 43,
-    DestroySession(DestroySessionArgs) = 44,
-    FreeStateid(FreeStateidArgs) = 45,
-    GetDirDelegation(GetDirDelegationArgs) = 46,
-    Getdeviceinfo(GetdeviceinfoArgs) = 47,
-    Getdevicelist(GetdevicelistArgs) = 48,
-    Layoutcommit(LayoutcommitArgs) = 49,
-    Layoutget(LayoutgetArgs) = 50,
-    Layoutreturn(LayoutreturnArgs) = 51,
-    SecinfoNoName(SecinfoNoNameArgs) = 52,
-    Sequence(SequenceArgs) = 53,
-    SetSsv(SetSsvArgs) = 54,
-    TestStateid(TestStateidArgs) = 55,
-    WantDelegation(WantDelegationArgs) = 56,
-    DestroyClientid(DestroyClientidArgs) = 57,
-    ReclaimComplete(ReclaimCompleteArgs) = 58,
+pub enum LockType {
+    Read = 1,
+    Write = 2,
+    BlockingRead = 3,
+    BlockingWrite = 4,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct OpenToLockOwner {
+    open_sequence_id: SequenceId,
+    open_state_id: StateId,
+    lock_sequence_id: SequenceId,
+    lock_owner: StateOwner,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ExistingLockOwner {
+    lock_state_id: StateId,
+    lock_sequence_id: SequenceId,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u8)]
+pub enum Locker {
+    NewLockOwner(OpenToLockOwner) = 1,
+    ExistingLockOwner(ExistingLockOwner) = 0,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LockArgs {
+    pub lock_type: LockType,
+    pub reclaim: bool,
+    pub offset: u64,
+    pub length: u64,
+    pub locker: Locker,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct StateOwner {
+    pub client_id: ClientId,
+    pub opaque: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LockTArgs {
+    pub lock_type: LockType,
+    pub offset: u64,
+    pub length: u64,
+    pub owner: StateOwner,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LockUArgs {
+    pub lock_type: LockType,
+    pub sequence_id: SequenceId,
+    pub lock_state_id: StateId,
+    pub offset: u64,
+    pub length: u64,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LookupArgs {
+    pub object_name: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct NVerifyArgs {
+    pub object_attributes: FileAttributes,
+}
+
+bitflags! {
+    #[derive(PartialEq, Eq, Copy, Clone, Debug)]
+    pub struct ShareAccess: u32 {
+        const READ                               = 0x00000001;
+        const WRITE                              = 0x00000002;
+        const BOTH                               = 0x00000003;
+        const WANT_DELEG_MASK                    = 0xFF00;
+        const WANT_NO_PREFERENCE                 = 0x0000;
+        const WANT_READ_DELEG                    = 0x0100;
+        const WANT_WRITE_DELEG                   = 0x0200;
+        const WANT_ANY_DELEG                     = 0x0300;
+        const WANT_NO_DELEG                      = 0x0400;
+        const WANT_CANCEL                        = 0x0500;
+        const WANT_SIGNAL_DELEG_WHEN_RESRC_AVAIL = 0x10000;
+        const WANT_PUSH_DELEG_WHEN_UNCONTENDED   = 0x20000;
+    }
+}
+
+impl_serde_for_bitflags!(ShareAccess);
+
+bitflags! {
+    #[derive(PartialEq, Eq, Copy, Clone, Debug)]
+    pub struct ShareDeny: u32 {
+        const NONE     = 0x00000000;
+        const READ     = 0x00000001;
+        const WRITE    = 0x00000002;
+        const BOTH     = 0x00000003;
+    }
+}
+
+impl_serde_for_bitflags!(ShareDeny);
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum OpenFlag {
+    OpenNoCreate = 0,
+    OpenCreate(CreateHow) = 1,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum OpenDelegationType {
+    None = 0,
+    Read = 1,
+    Write = 2,
+    NoneExt = 3,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum CreateHow {
+    Unchecked = 0,
+    Guarded {
+        create_attrs: FileAttributes,
+    } = 1,
+    Exclusive {
+        create_verifier: Verifier,
+    } = 2,
+    ExclusiveBoth {
+        create_verifier: Verifier,
+        create_attrs: FileAttributes,
+    } = 3,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum OpenClaim {
+    Null {
+        file: String,
+    } = 0,
+    Previous {
+        delegate_type: OpenDelegationType,
+    } = 1,
+    DelegateCurrent {
+        delegate_current_info: OpenClaimDelegateCurrent,
+    } = 2,
+    DelegatePrevious {
+        file_delegate_previous: String,
+    } = 3,
+    Fh = 4,
+    DelegateCurrentFh {
+        oc_delegate_state_id: StateId,
+    } = 5,
+    PreviousFh = 6,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct OpenClaimDelegateCurrent {
+    pub delegate_stateid: StateId,
+    pub file: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct OpenArgs {
+    pub sequence_id: SequenceId,
+    pub share_access: ShareAccess,
+    pub share_deny: ShareDeny,
+    pub owner: StateOwner,
+    pub open_how: OpenFlag,
+    pub claim: OpenClaim,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct OpenAttrArgs {
+    pub create_dir: bool,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct OpenDowngradeArgs {
+    pub open_state_id: StateId,
+    pub sequence_id: SequenceId,
+    pub share_access: ShareAccess,
+    pub share_deny: ShareDeny,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct PutFhArgs {
+    pub object: FileHandle,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ReadArgs {
+    pub state_id: StateId,
+    pub offset: u64,
+    pub count: u64,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct Cookie(pub u64);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct Verifier(pub [u8; 8]);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ReadDirArgs {
+    pub cookie: Cookie,
+    pub cookie_verifier: Verifier,
+    pub directory_count: u32,
+    pub max_count: u32,
+    pub attr_request: EnumSet<FileAttributeId>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct RemoveArgs {
+    pub target: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct RenameArgs {
+    pub old_name: String,
+    pub new_name: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SecInfoArgs {
+    pub name: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SetAttrArgs {
+    pub state_id: StateId,
+    pub object_attributes: FileAttributes,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct VerifyArgs {
+    pub object_attributes: FileAttributes,
+}
+
+#[derive(
+    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Copy, Clone, Debug,
+)]
+#[repr(u32)]
+pub enum StableHow {
+    Unstable = 0,
+    DataSync = 1,
+    FileSync = 2,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct WriteArgs {
+    pub state_id: StateId,
+    pub offset: u64,
+    pub stable: StableHow,
+    #[serde(with = "serde_bytes")]
+    pub data: Vec<u8>,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum RpcGssService {
+    None = 1,
+    Integrity = 2,
+    Privacy = 3,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct GssHandle(#[serde(with = "serde_bytes")] pub Vec<u8>);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct GssCallbackHandles {
+    service: RpcGssService,
+    handle_from_server: GssHandle,
+    handle_from_client: GssHandle,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum CallbackSecurityParameters {
+    None = AuthFlavor::None as u32,
+    Sys(AuthSysParameters) = AuthFlavor::Sys as u32,
+    RpcSecGss(GssCallbackHandles) = AuthFlavor::RpcSecGss as u32,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum ChannelDirectionFromServer {
+    Fore = 1,
+    Back = 2,
+    Both = 3,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct BackchannelCtlArgs {
+    pub cp_program: u32,
+    pub security_parameters: Vec<CallbackSecurityParameters>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct SessionId([u8; 16]);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct BindConnToSessionArgs {
+    pub session_id: SessionId,
+    pub direction: ChannelDirectionFromServer,
+    pub use_connection_in_rdma_mode: bool,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ClientOwner {
+    pub verifier: Verifier,
+    pub owner_id: Vec<u8>,
+}
+
+bitflags! {
+    #[derive(PartialEq, Eq, Copy, Clone, Debug)]
+    pub struct ExchangeIdFlags: u32 {
+        const SUPP_MOVED_REFER    = 0x00000001;
+        const SUPP_MOVED_MIGR     = 0x00000002;
+        const BIND_PRINC_STATEID  = 0x00000100;
+        const USE_NON_PNFS        = 0x00010000;
+        const USE_PNFS_MDS        = 0x00020000;
+        const USE_PNFS_DS         = 0x00040000;
+        const MASK_PNFS           = 0x00070000;
+        const UPD_CONFIRMED_REC_A = 0x40000000;
+        const CONFIRMED_R         = 0x80000000;
+    }
+}
+
+impl_serde_for_bitflags!(ExchangeIdFlags);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct StateProtectOps {
+    pub must_enforce: EnumSet<OperationId>,
+    pub must_allow: EnumSet<OperationId>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SsvProtInfo {
+    pub ops: StateProtectOps,
+    pub hash_algorithm: u32,
+    pub encryption_algorithm: u32,
+    pub ssv_length: u32,
+    pub window: u32,
+    pub handles: Vec<GssHandle>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SecOid(#[serde(with = "serde_bytes")] pub Vec<u8>);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SsvStateProtectParams {
+    pub ops: StateProtectOps,
+    pub hash_algorithms: Vec<SecOid>,
+    pub encryption_algorithms: Vec<SecOid>,
+    pub window: u32,
+    pub num_gss_handles: u32,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum StateProtect {
+    None = 0,
+    MachCred(StateProtectOps) = 1,
+    Ssv(SsvStateProtectParams) = 2,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ImplId {
+    pub domain: String,
+    pub name: String,
+    pub date: Time,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ExchangeIdArgs {
+    pub client_owner: ClientOwner,
+    pub flags: ExchangeIdFlags,
+    pub state_protect: StateProtect,
+    pub client_impl_id: Option<ImplId>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ChannelAttrs {
+    pub header_pad_size: u32,
+    pub max_request_size: u32,
+    pub max_response_size: u32,
+    pub max_response_size_cached: u32,
+    pub max_operations: u32,
+    pub max_requests: u32,
+    pub rdma_ird: Option<u32>,
+}
+
+bitflags! {
+    #[derive(PartialEq, Eq, Copy, Clone, Debug)]
+    pub struct CreateSessionFlags: u32 {
+        const PERSIST              = 0x00000001;
+        const CONN_BACK_CHAN       = 0x00000002;
+        const CONN_RDMA            = 0x00000004;
+    }
+}
+
+impl_serde_for_bitflags!(CreateSessionFlags);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct CreateSessionArgs {
+    pub client_id: ClientId,
+    pub sequence_id: SequenceId,
+    pub flags: CreateSessionFlags,
+    pub fore_channel_attrs: ChannelAttrs,
+    pub back_channel_attrs: ChannelAttrs,
+    pub security_parameters: Vec<CallbackSecurityParameters>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct DestroySessionArgs {
+    pub session_id: SessionId,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct FreeStateidArgs {
+    pub state_id: StateId,
+}
+
+#[derive(
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    PartialEq,
+    Eq,
+    Copy,
+    Clone,
+    PartialOrd,
+    Ord,
+    Debug,
+    TryFromPrimitive,
+    IntoPrimitive,
+)]
+#[repr(u32)]
+pub enum NotifyType {
+    ChangeChildAttrs = 0,
+    ChangeDirAttrs = 1,
+    RemoveEntry = 2,
+    AddEntry = 3,
+    RenameEntry = 4,
+    ChangeCookieVerifier = 5,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct GetDirDelegationArgs {
+    pub signal_delegation_available: bool,
+    pub notification_types: EnumSet<NotifyType>,
+    pub child_attr_delay: Time,
+    pub dir_attr_delay: Time,
+    pub child_attributes: EnumSet<FileAttributeId>,
+    pub dir_attributes: EnumSet<FileAttributeId>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct DeviceId([u8; 16]);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct Util(u32);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct GetDeviceInfoArgs {
+    pub device_id: DeviceId,
+    pub util: Util,
+    pub first_stripe_index: u32,
+    pub pattern_offset: u64,
+    pub fh_list: Vec<FileHandle>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct GetDeviceListArgs {
+    pub layout_type: LayoutType,
+    pub max_devices: u32,
+    pub cookie: Cookie,
+    pub cookie_verifier: Verifier,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LayoutUpdate {
+    pub type_: LayoutType,
+    pub body: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LayoutCommitArgs {
+    pub offset: u64,
+    pub length: u64,
+    pub reclaim: bool,
+    pub state_id: StateId,
+    pub last_write_offset: Option<u64>,
+    pub time_modify: Option<Time>,
+    pub layout_update: LayoutUpdate,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum LayoutIoMode {
+    Read = 1,
+    ReadWrite = 2,
+    Any = 3,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LayoutGetArgs {
+    pub signal_layout_available: bool,
+    pub layout_type: LayoutType,
+    pub io_mode: LayoutIoMode,
+    pub offset: u64,
+    pub length: u64,
+    pub min_length: u64,
+    pub state_id: StateId,
+    pub max_count: u32,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum LayoutReturnType {
+    File = 1,
+    FsId = 2,
+    All = 3,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LayoutReturnFile {
+    pub offset: u64,
+    pub length: u64,
+    pub state_id: StateId,
+    #[serde(with = "serde_bytes")]
+    pub body: Vec<u8>,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum LayoutReturn {
+    File(LayoutReturnFile) = LayoutReturnType::File as u32,
+    FsId = LayoutReturnType::FsId as u32,
+    All = LayoutReturnType::All as u32,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LayoutReturnArgs {
+    pub reclaim: bool,
+    pub layout_type: LayoutType,
+    pub io_mode: LayoutIoMode,
+    pub layout_return: LayoutReturn,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum SecInfoStyle {
+    CurrentFh = 0,
+    Parent = 1,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SecInfoNoNameArgs {
+    pub style: SecInfoStyle,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct SlotId(u32);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SequenceArgs {
+    pub session_id: SessionId,
+    pub sequence_id: SequenceId,
+    pub slot_id: SlotId,
+    pub highest_slot_id: SlotId,
+    pub cache_this: bool,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SetSsvArgs {
+    #[serde(with = "serde_bytes")]
+    pub ssv: Vec<u8>,
+    #[serde(with = "serde_bytes")]
+    pub digest: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct TestStateIdArgs {
+    pub state_ids: Vec<StateId>,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum DelegationClaim {
+    Null = 0,
+    Previous { delegate_type: OpenDelegationType } = 1,
+    DelegationCurrent = 2,
+    DelegationPrevious = 3,
+    Fh = 4,
+    DelegationCurrentFh = 5,
+    DelefationPreviousFh = 6,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct WantDelegationArgs {
+    pub want: ShareAccess,
+    pub claim: DelegationClaim,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct DestroyClientIdArgs {
+    pub client_id: ClientId,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ReclaimCompleteArgs {
+    pub one_fs: bool,
+}
+
+#[derive(
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    PartialEq,
+    Eq,
+    Copy,
+    Clone,
+    Debug,
+    PartialOrd,
+    Ord,
+    TryFromPrimitive,
+    IntoPrimitive,
+)]
+#[repr(u32)]
+pub enum OperationId {
+    Access = 3,
+    Close = 4,
+    Commit = 5,
+    Create = 6,
+    DelegPurge = 7,
+    DelegReturn = 8,
+    GetAttr = 9,
+    GetFh = 10,
+    Link = 11,
+    Lock = 12,
+    LockT = 13,
+    LockU = 14,
+    LookUp = 15,
+    LookUpP = 16,
+    NVerify = 17,
+    Open = 18,
+    OpenAttr = 19,
+    OpenDowngrade = 21,
+    PutFh = 22,
+    PutPubFh = 23,
+    PutRootFh = 24,
+    Read = 25,
+    ReadDir = 26,
+    Readlink = 27,
+    Remove = 28,
+    Rename = 29,
+    RestoreFh = 31,
+    SaveFh = 32,
+    SecInfo = 33,
+    SetAttr = 34,
+    Verify = 37,
+    Write = 38,
+    BackchannelCtl = 40,
+    BindConnToSession = 41,
+    ExchangeId = 42,
+    CreateSession = 43,
+    DestroySession = 44,
+    FreeStateid = 45,
+    GetDirDelegation = 46,
+    GetDeviceInfo = 47,
+    GetDeviceList = 48,
+    LayoutCommit = 49,
+    LayoutGet = 50,
+    LayoutReturn = 51,
+    SecInfoNoName = 52,
+    Sequence = 53,
+    SetSsv = 54,
+    TestStateId = 55,
+    WantDelegation = 56,
+    DestroyClientId = 57,
+    ReclaimComplete = 58,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum ArgOp {
+    Access(AccessArgs) = OperationId::Access as u32,
+    Close(CloseArgs) = OperationId::Close as u32,
+    Commit(CommitArgs) = OperationId::Commit as u32,
+    Create(CreateArgs) = OperationId::Create as u32,
+    DelegPurge(DelegPurgeArgs) = OperationId::DelegPurge as u32,
+    DelegReturn(DelegReturnArgs) = OperationId::DelegReturn as u32,
+    GetAttr(GetAttrArgs) = OperationId::GetAttr as u32,
+    GetFh = OperationId::GetFh as u32,
+    Link(LinkArgs) = OperationId::Link as u32,
+    Lock(LockArgs) = OperationId::Lock as u32,
+    LockT(LockTArgs) = OperationId::LockT as u32,
+    LockU(LockUArgs) = OperationId::LockU as u32,
+    LookUp(LookupArgs) = OperationId::LookUp as u32,
+    LookUpP = OperationId::LookUpP as u32,
+    NVerify(NVerifyArgs) = OperationId::NVerify as u32,
+    Open(OpenArgs) = OperationId::Open as u32,
+    OpenAttr(OpenAttrArgs) = OperationId::OpenAttr as u32,
+    OpenDowngrade(OpenDowngradeArgs) = OperationId::OpenDowngrade as u32,
+    PutFh(PutFhArgs) = OperationId::PutFh as u32,
+    PutPubFh = OperationId::PutPubFh as u32,
+    PutRootFh = OperationId::PutRootFh as u32,
+    Read(ReadArgs) = OperationId::Read as u32,
+    ReadDir(ReadDirArgs) = OperationId::ReadDir as u32,
+    Readlink = OperationId::Readlink as u32,
+    Remove(RemoveArgs) = OperationId::Remove as u32,
+    Rename(RenameArgs) = OperationId::Rename as u32,
+    RestoreFh = OperationId::RestoreFh as u32,
+    SaveFh = OperationId::SaveFh as u32,
+    SecInfo(SecInfoArgs) = OperationId::SecInfo as u32,
+    SetAttr(SetAttrArgs) = OperationId::SetAttr as u32,
+    Verify(VerifyArgs) = OperationId::Verify as u32,
+    Write(WriteArgs) = OperationId::Write as u32,
+    BackchannelCtl(BackchannelCtlArgs) = OperationId::BackchannelCtl as u32,
+    BindConnToSession(BindConnToSessionArgs) = OperationId::BindConnToSession as u32,
+    ExchangeId(ExchangeIdArgs) = OperationId::ExchangeId as u32,
+    CreateSession(CreateSessionArgs) = OperationId::CreateSession as u32,
+    DestroySession(DestroySessionArgs) = OperationId::DestroySession as u32,
+    FreeStateid(FreeStateidArgs) = OperationId::FreeStateid as u32,
+    GetDirDelegation(GetDirDelegationArgs) = OperationId::GetDirDelegation as u32,
+    GetDeviceInfo(GetDeviceInfoArgs) = OperationId::GetDeviceInfo as u32,
+    GetDeviceList(GetDeviceListArgs) = OperationId::GetDeviceList as u32,
+    LayoutCommit(LayoutCommitArgs) = OperationId::LayoutCommit as u32,
+    LayoutGet(LayoutGetArgs) = OperationId::LayoutGet as u32,
+    LayoutReturn(LayoutReturnArgs) = OperationId::LayoutReturn as u32,
+    SecInfoNoName(SecInfoNoNameArgs) = OperationId::SecInfoNoName as u32,
+    Sequence(SequenceArgs) = OperationId::Sequence as u32,
+    SetSsv(SetSsvArgs) = OperationId::SetSsv as u32,
+    TestStateId(TestStateIdArgs) = OperationId::TestStateId as u32,
+    WantDelegation(WantDelegationArgs) = OperationId::WantDelegation as u32,
+    DestroyClientId(DestroyClientIdArgs) = OperationId::DestroyClientId as u32,
+    ReclaimComplete(ReclaimCompleteArgs) = OperationId::ReclaimComplete as u32,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct DirectoryEntry {
+    pub cookie: Cookie,
+    pub name: String,
+    pub attrs: FileAttributes,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct DirectoryList {
+    #[serde(with = "xdr_extras::list")]
+    pub entries: Vec<DirectoryEntry>,
+    pub eof: bool,
 }

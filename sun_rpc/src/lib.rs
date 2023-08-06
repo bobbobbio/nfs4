@@ -5,10 +5,10 @@ use serde::{Deserialize, Serialize};
 use std::{fmt, io};
 use xdr_extras::{DeserializeWithDiscriminant, SerializeWithDiscriminant};
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
-struct Xid(u32);
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct Xid(u32);
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Message<Args> {
     xid: Xid,
     body: MessageBody<Args>,
@@ -31,8 +31,8 @@ trait Procedure {
         + fmt::Debug;
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
-struct CallBody<CallArgsT> {
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct CallBody<CallArgsT> {
     rpc_version: u32,
     program: u32,
     version: u32,
@@ -43,10 +43,17 @@ struct CallBody<CallArgsT> {
 }
 
 #[derive(
-    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
 )]
 #[repr(u32)]
-enum AcceptedReplyBody<ReturnArgsT> {
+pub enum AcceptedReplyBody<ReturnArgsT> {
     Success(ReturnArgsT) = 0,
     ProgramUnavailable = 1,
     ProgramMismatch { low: u32, high: u32 } = 2,
@@ -55,17 +62,24 @@ enum AcceptedReplyBody<ReturnArgsT> {
     SystemError = 5,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
-struct AcceptedReply<ReturnArgsT> {
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct AcceptedReply<ReturnArgsT> {
     verifier: OpaqueAuth,
     body: AcceptedReplyBody<ReturnArgsT>,
 }
 
 #[derive(
-    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
 )]
 #[repr(u32)]
-enum AuthFlavor {
+pub enum AuthFlavor {
     None = 0,
     Sys = 1,
     Short = 2,
@@ -73,8 +87,23 @@ enum AuthFlavor {
     RpcSecGss = 6,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord, Debug)]
-struct OpaqueAuth {
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct Uid(u32);
+
+#[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct Gid(u32);
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct AuthSysParameters {
+    pub stamp: i32,
+    pub machine_name: String,
+    pub uid: Uid,
+    pub gid: Gid,
+    pub gids: Vec<Gid>,
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub struct OpaqueAuth {
     flavor: AuthFlavor,
     body: Vec<u8>, // limit of 400 bytes
 }
@@ -89,10 +118,17 @@ impl OpaqueAuth {
 }
 
 #[derive(
-    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
 )]
 #[repr(u32)]
-enum AuthStat {
+pub enum AuthStat {
     Ok = 0, /* success */
     /*
      * failed at remote end
@@ -110,28 +146,49 @@ enum AuthStat {
 }
 
 #[derive(
-    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
 )]
 #[repr(u32)]
-enum RejectedReply {
+pub enum RejectedReply {
     RpcMismatch { low: u32, high: u32 } = 0,
     AuthError(AuthStat) = 1,
 }
 
 #[derive(
-    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
 )]
 #[repr(u32)]
-enum ReplyBody<ReturnArgsT> {
+pub enum ReplyBody<ReturnArgsT> {
     Accepted(AcceptedReply<ReturnArgsT>) = 0,
     Denied(RejectedReply) = 1,
 }
 
 #[derive(
-    SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, PartialOrd, Ord, Debug,
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    Clone,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Debug,
 )]
 #[repr(u32)]
-enum MessageBody<Args> {
+pub enum MessageBody<Args> {
     Call(CallBody<Args>) = 0,
     Reply(ReplyBody<Args>) = 1,
 }
