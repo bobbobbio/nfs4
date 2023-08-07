@@ -1,17 +1,16 @@
 // Copyright 2023 Remi Bernotavicius
 
-use derive_more::From;
 use serde::{Deserialize, Serialize};
-use std::{fmt, io};
+use std::fmt;
 use xdr_extras::{DeserializeWithDiscriminant, SerializeWithDiscriminant};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct Xid(u32);
+pub struct Xid(pub u32);
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct Message<Args> {
-    xid: Xid,
-    body: MessageBody<Args>,
+    pub xid: Xid,
+    pub body: MessageBody<Args>,
 }
 
 trait Procedure {
@@ -33,13 +32,13 @@ trait Procedure {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct CallBody<CallArgsT> {
-    rpc_version: u32,
-    program: u32,
-    version: u32,
-    procedure: u32,
-    credential: OpaqueAuth,
-    verifier: OpaqueAuth,
-    call_args: CallArgsT,
+    pub rpc_version: u32,
+    pub program: u32,
+    pub version: u32,
+    pub procedure: u32,
+    pub credential: OpaqueAuth,
+    pub verifier: OpaqueAuth,
+    pub call_args: CallArgsT,
 }
 
 #[derive(
@@ -64,8 +63,8 @@ pub enum AcceptedReplyBody<ReturnArgsT> {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct AcceptedReply<ReturnArgsT> {
-    verifier: OpaqueAuth,
-    body: AcceptedReplyBody<ReturnArgsT>,
+    pub verifier: OpaqueAuth,
+    pub body: AcceptedReplyBody<ReturnArgsT>,
 }
 
 #[derive(
@@ -104,12 +103,12 @@ pub struct AuthSysParameters {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct OpaqueAuth {
-    flavor: AuthFlavor,
-    body: Vec<u8>, // limit of 400 bytes
+    pub flavor: AuthFlavor,
+    pub body: Vec<u8>, // limit of 400 bytes
 }
 
 impl OpaqueAuth {
-    fn none() -> Self {
+    pub fn none() -> Self {
         Self {
             flavor: AuthFlavor::None,
             body: vec![],
@@ -191,75 +190,4 @@ pub enum ReplyBody<ReturnArgsT> {
 pub enum MessageBody<Args> {
     Call(CallBody<Args>) = 0,
     Reply(ReplyBody<Args>) = 1,
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
-
-#[derive(Debug, From)]
-pub enum Error {
-    Deseralization(serde_xdr::CompatDeserializationError),
-    Serialization(serde_xdr::CompatSerializationError),
-    Io(io::Error),
-}
-
-pub trait Transport: io::Read + io::Write {}
-
-impl<T> Transport for T where T: io::Read + io::Write {}
-
-const PORT_MAPPER: u32 = 100000;
-pub const PORT_MAPPER_PORT: u16 = 111;
-
-pub fn do_ping(mut transport: &mut impl Transport) -> Result<Message<()>> {
-    let message = Message {
-        xid: Xid(1),
-        body: MessageBody::Call(CallBody {
-            rpc_version: 2,
-            program: PORT_MAPPER,
-            version: 4,
-            procedure: 0,
-            credential: OpaqueAuth::none(),
-            verifier: OpaqueAuth::none(),
-            call_args: (),
-        }),
-    };
-    let mut serialized = vec![0; 4];
-    serde_xdr::to_writer(&mut serialized, &message)?;
-
-    let fragment_header = (serialized.len() - 4) as u32 | 0x1 << 31;
-    serde_xdr::to_writer(&mut &mut serialized[..4], &fragment_header)?;
-
-    transport.write_all(&serialized[..])?;
-
-    let fragment_header: u32 = serde_xdr::from_reader(transport)?;
-    let length = fragment_header & !(0x1 << 31);
-    let reply: Message<()> =
-        serde_xdr::from_reader(&mut io::Read::take(&mut transport, length as u64))?;
-
-    Ok(reply)
-}
-
-#[test]
-fn ping() {
-    vm_test_fixture::fixture(|m| {
-        let port = m
-            .forwarded_ports()
-            .iter()
-            .find(|p| p.guest == PORT_MAPPER_PORT)
-            .unwrap();
-        let mut transport = std::net::TcpStream::connect(("127.0.0.1", port.host)).unwrap();
-        let reply = do_ping(&mut transport).unwrap();
-        assert_eq!(
-            reply,
-            Message {
-                xid: Xid(1),
-                body: MessageBody::Reply(ReplyBody::Accepted(AcceptedReply {
-                    verifier: OpaqueAuth {
-                        flavor: AuthFlavor::None,
-                        body: vec![],
-                    },
-                    body: AcceptedReplyBody::Success(()),
-                })),
-            }
-        );
-    });
 }

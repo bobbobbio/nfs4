@@ -18,6 +18,7 @@ members = [
     "cli",
     "nfs4",
     "sun_rpc",
+    "sun_rpc_client",
     "vm_runner",
     "vm_test_fixture",
     "xdr_extras",

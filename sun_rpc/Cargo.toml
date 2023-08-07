@@ -6,10 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-derive_more = "*"
 serde-xdr = "*"
 serde = { version = "*", features = ["derive"] }
 xdr_extras = { version = "*", path = "../xdr_extras" }
-
-[dev-dependencies]
-vm_test_fixture = { version = "*", path = "../vm_test_fixture" }

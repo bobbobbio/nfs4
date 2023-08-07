@@ -6,4 +6,4 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-sun_rpc = { version = "*", path = "../sun_rpc" }
+sun_rpc_client = { version = "*", path = "../sun_rpc_client" }
