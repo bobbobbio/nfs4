@@ -20,6 +20,6 @@ members = [
     "sun_rpc",
     "vm_runner",
     "vm_test_fixture",
-    "xdr-extras",
-    "xdr-extras-derive",
+    "xdr_extras",
+    "xdr_extras_derive",
 ]

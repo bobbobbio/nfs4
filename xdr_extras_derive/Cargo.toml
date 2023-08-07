@@ -1,5 +1,5 @@
 [package]
-name = "xdr-extras-derive"
+name = "xdr_extras_derive"
 version = "0.1.0"
 edition = "2021"
 
@@ -16,4 +16,4 @@ quote = "*"
 [dev-dependencies]
 serde = "*"
 serde-xdr = "*"
-xdr-extras = { version = "*", path = "../xdr-extras" }
+xdr_extras = { version = "*", path = "../xdr_extras" }

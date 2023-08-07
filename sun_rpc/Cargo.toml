@@ -9,7 +9,7 @@ edition = "2021"
 derive_more = "*"
 serde-xdr = "*"
 serde = { version = "*", features = ["derive"] }
-xdr-extras = { version = "*", path = "../xdr-extras" }
+xdr_extras = { version = "*", path = "../xdr_extras" }
 
 [dev-dependencies]
 vm_test_fixture = { version = "*", path = "../vm_test_fixture" }

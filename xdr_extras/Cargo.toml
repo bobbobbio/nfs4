@@ -1,5 +1,5 @@
 [package]
-name = "xdr-extras"
+name = "xdr_extras"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,4 +7,4 @@ edition = "2021"
 
 [dependencies]
 serde = "*"
-xdr-extras-derive = { version = "*", path = "../xdr-extras-derive" }
+xdr_extras_derive = { version = "*", path = "../xdr_extras_derive" }
