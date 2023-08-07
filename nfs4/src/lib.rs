@@ -201,7 +201,7 @@ pub enum FileAttributeId {
     RetentevtSet = 72,
     RetentionHold = 73,
     ModeSetMasked = 74,
-    SuppattrExclcreat = 75,
+    SupportedAttrsExclusiveCreate = 75,
     FsCharsetCap = 76,
 }
 
@@ -320,17 +320,25 @@ pub enum LayoutType {
     BlockVolume = 3,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LockDenied {
+    pub offset: u64,
+    pub length: u64,
+    pub lock_type: LockType,
+    pub owner: StateOwner,
+}
+
 #[derive(
     SerializeWithDiscriminant,
     DeserializeWithDiscriminant,
-    TryFromPrimitive,
     PartialEq,
     Eq,
     Clone,
     Debug,
+    TryFromPrimitive,
 )]
 #[repr(u32)]
-pub enum StatusError {
+pub enum StatusErrorId {
     Perm = 1,
     NoEnt = 2,
     Io = 5,
@@ -351,7 +359,7 @@ pub enum StatusError {
     Stale = 70,
     BadHandle = 10001,
     BadCookie = 10003,
-    NotSupp = 10004,
+    NotSupported = 10004,
     TooSmall = 10005,
     ServerFault = 10006,
     BadType = 10007,
@@ -378,7 +386,7 @@ pub enum StatusError {
     Symlink = 10029,
     RestoreFh = 10030,
     LeaseMoved = 10031,
-    AttrNotSupp = 10032,
+    AttrNotSupported = 10032,
     NoGrace = 10033,
     ReclaimBad = 10034,
     ReclaimConflict = 10035,
@@ -389,7 +397,7 @@ pub enum StatusError {
     BadChar = 10040,
     BadName = 10041,
     BadRange = 10042,
-    LockNotSupp = 10043,
+    LockNotSupported = 10043,
     OpIllegal = 10044,
     Deadlock = 10045,
     FileOpen = 10046,
@@ -418,13 +426,13 @@ pub enum StatusError {
     UnsafeCompound = 10069,
     TooManyOps = 10070,
     OpNotInSession = 10071,
-    HashAlgUnsupp = 10072,
+    HashAlgUnsupported = 10072,
     ClientIdBusy = 10074,
     PnfsIoHole = 10075,
     SeqFalseRetry = 10076,
     BadHighSlot = 10077,
     DeadSession = 10078,
-    EncrAlgUnsupp = 10079,
+    EncrAlgUnsupported = 10079,
     PnfsNoLayout = 10080,
     NotOnlyOp = 10081,
     WrongCred = 10082,
@@ -433,6 +441,224 @@ pub enum StatusError {
     RejectDeleg = 10085,
     ReturnConflict = 10086,
     DelegRevoked = 10087,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum StatusError {
+    Perm = StatusErrorId::Perm as u32,
+    NoEnt = StatusErrorId::NoEnt as u32,
+    Io = StatusErrorId::Io as u32,
+    NxIo = StatusErrorId::NxIo as u32,
+    Access = StatusErrorId::Access as u32,
+    Exist = StatusErrorId::Exist as u32,
+    XDev = StatusErrorId::XDev as u32,
+    NotDir = StatusErrorId::NotDir as u32,
+    Isdir = StatusErrorId::Isdir as u32,
+    Inval = StatusErrorId::Inval as u32,
+    FBig = StatusErrorId::FBig as u32,
+    NoSpc = StatusErrorId::NoSpc as u32,
+    RoFs = StatusErrorId::RoFs as u32,
+    MLink = StatusErrorId::MLink as u32,
+    NameTooLong = StatusErrorId::NameTooLong as u32,
+    NotEmpty = StatusErrorId::NotEmpty as u32,
+    DQuot = StatusErrorId::DQuot as u32,
+    Stale = StatusErrorId::Stale as u32,
+    BadHandle = StatusErrorId::BadHandle as u32,
+    BadCookie = StatusErrorId::BadCookie as u32,
+    NotSupported = StatusErrorId::NotSupported as u32,
+    TooSmall = StatusErrorId::TooSmall as u32,
+    ServerFault = StatusErrorId::ServerFault as u32,
+    BadType = StatusErrorId::BadType as u32,
+    Delay = StatusErrorId::Delay as u32,
+    Same = StatusErrorId::Same as u32,
+    Denied { denied: LockDenied } = StatusErrorId::Denied as u32,
+    Expired = StatusErrorId::Expired as u32,
+    Locked = StatusErrorId::Locked as u32,
+    Grace = StatusErrorId::Grace as u32,
+    FhExpired = StatusErrorId::FhExpired as u32,
+    ShareDenied = StatusErrorId::ShareDenied as u32,
+    WrongSec = StatusErrorId::WrongSec as u32,
+    ClidInUse = StatusErrorId::ClidInUse as u32,
+    Moved = StatusErrorId::Moved as u32,
+    NoFileHandle = StatusErrorId::NoFileHandle as u32,
+    MinorVersMismatch = StatusErrorId::MinorVersMismatch as u32,
+    StaleClientId = StatusErrorId::StaleClientId as u32,
+    StaleStateId = StatusErrorId::StaleStateId as u32,
+    OldStateId = StatusErrorId::OldStateId as u32,
+    BadStateId = StatusErrorId::BadStateId as u32,
+    BadSeqId = StatusErrorId::BadSeqId as u32,
+    NotSame = StatusErrorId::NotSame as u32,
+    LockRange = StatusErrorId::LockRange as u32,
+    Symlink = StatusErrorId::Symlink as u32,
+    RestoreFh = StatusErrorId::RestoreFh as u32,
+    LeaseMoved = StatusErrorId::LeaseMoved as u32,
+    AttrNotSupported = StatusErrorId::AttrNotSupported as u32,
+    NoGrace = StatusErrorId::NoGrace as u32,
+    ReclaimBad = StatusErrorId::ReclaimBad as u32,
+    ReclaimConflict = StatusErrorId::ReclaimConflict as u32,
+    BadXdr = StatusErrorId::BadXdr as u32,
+    LocksHeld = StatusErrorId::LocksHeld as u32,
+    OpenMode = StatusErrorId::OpenMode as u32,
+    BadOwner = StatusErrorId::BadOwner as u32,
+    BadChar = StatusErrorId::BadChar as u32,
+    BadName = StatusErrorId::BadName as u32,
+    BadRange = StatusErrorId::BadRange as u32,
+    LockNotSupported = StatusErrorId::LockNotSupported as u32,
+    OpIllegal = StatusErrorId::OpIllegal as u32,
+    Deadlock = StatusErrorId::Deadlock as u32,
+    FileOpen = StatusErrorId::FileOpen as u32,
+    AdminRevoked = StatusErrorId::AdminRevoked as u32,
+    CbPathDown = StatusErrorId::CbPathDown as u32,
+    BadIoMode = StatusErrorId::BadIoMode as u32,
+    BadLayout = StatusErrorId::BadLayout as u32,
+    BadSessionDigest = StatusErrorId::BadSessionDigest as u32,
+    BadSession = StatusErrorId::BadSession as u32,
+    BadSlot = StatusErrorId::BadSlot as u32,
+    CompleteAlready = StatusErrorId::CompleteAlready as u32,
+    ConnNotBoundToSession = StatusErrorId::ConnNotBoundToSession as u32,
+    DelegAlreadyWanted = StatusErrorId::DelegAlreadyWanted as u32,
+    BackChanBusy = StatusErrorId::BackChanBusy as u32,
+    LayoutTryLater = StatusErrorId::LayoutTryLater as u32,
+    LayoutUnavailable = StatusErrorId::LayoutUnavailable as u32,
+    NoMatchingLayout = StatusErrorId::NoMatchingLayout as u32,
+    RecallConflict = StatusErrorId::RecallConflict as u32,
+    UnknownLayoutType = StatusErrorId::UnknownLayoutType as u32,
+    SeqMisordered = StatusErrorId::SeqMisordered as u32,
+    SequencePos = StatusErrorId::SequencePos as u32,
+    ReqTooBig = StatusErrorId::ReqTooBig as u32,
+    RepTooBig = StatusErrorId::RepTooBig as u32,
+    RepTooBigToCache = StatusErrorId::RepTooBigToCache as u32,
+    RetryUncachedRep = StatusErrorId::RetryUncachedRep as u32,
+    UnsafeCompound = StatusErrorId::UnsafeCompound as u32,
+    TooManyOps = StatusErrorId::TooManyOps as u32,
+    OpNotInSession = StatusErrorId::OpNotInSession as u32,
+    HashAlgUnsupported = StatusErrorId::HashAlgUnsupported as u32,
+    ClientIdBusy = StatusErrorId::ClientIdBusy as u32,
+    PnfsIoHole = StatusErrorId::PnfsIoHole as u32,
+    SeqFalseRetry = StatusErrorId::SeqFalseRetry as u32,
+    BadHighSlot = StatusErrorId::BadHighSlot as u32,
+    DeadSession = StatusErrorId::DeadSession as u32,
+    EncrAlgUnsupported = StatusErrorId::EncrAlgUnsupported as u32,
+    PnfsNoLayout = StatusErrorId::PnfsNoLayout as u32,
+    NotOnlyOp = StatusErrorId::NotOnlyOp as u32,
+    WrongCred = StatusErrorId::WrongCred as u32,
+    WrongType = StatusErrorId::WrongType as u32,
+    DirDelegUnavail = StatusErrorId::DirDelegUnavail as u32,
+    RejectDeleg = StatusErrorId::RejectDeleg as u32,
+    ReturnConflict = StatusErrorId::ReturnConflict as u32,
+    DelegRevoked = StatusErrorId::DelegRevoked as u32,
+}
+
+impl TryFrom<StatusErrorId> for StatusError {
+    type Error = String;
+
+    fn try_from(id: StatusErrorId) -> Result<Self, Self::Error> {
+        match id {
+            StatusErrorId::Perm => Ok(Self::Perm),
+            StatusErrorId::NoEnt => Ok(Self::NoEnt),
+            StatusErrorId::Io => Ok(Self::Io),
+            StatusErrorId::NxIo => Ok(Self::NxIo),
+            StatusErrorId::Access => Ok(Self::Access),
+            StatusErrorId::Exist => Ok(Self::Exist),
+            StatusErrorId::XDev => Ok(Self::XDev),
+            StatusErrorId::NotDir => Ok(Self::NotDir),
+            StatusErrorId::Isdir => Ok(Self::Isdir),
+            StatusErrorId::Inval => Ok(Self::Inval),
+            StatusErrorId::FBig => Ok(Self::FBig),
+            StatusErrorId::NoSpc => Ok(Self::NoSpc),
+            StatusErrorId::RoFs => Ok(Self::RoFs),
+            StatusErrorId::MLink => Ok(Self::MLink),
+            StatusErrorId::NameTooLong => Ok(Self::NameTooLong),
+            StatusErrorId::NotEmpty => Ok(Self::NotEmpty),
+            StatusErrorId::DQuot => Ok(Self::DQuot),
+            StatusErrorId::Stale => Ok(Self::Stale),
+            StatusErrorId::BadHandle => Ok(Self::BadHandle),
+            StatusErrorId::BadCookie => Ok(Self::BadCookie),
+            StatusErrorId::NotSupported => Ok(Self::NotSupported),
+            StatusErrorId::TooSmall => Ok(Self::TooSmall),
+            StatusErrorId::ServerFault => Ok(Self::ServerFault),
+            StatusErrorId::BadType => Ok(Self::BadType),
+            StatusErrorId::Delay => Ok(Self::Delay),
+            StatusErrorId::Same => Ok(Self::Same),
+            StatusErrorId::Expired => Ok(Self::Expired),
+            StatusErrorId::Locked => Ok(Self::Locked),
+            StatusErrorId::Grace => Ok(Self::Grace),
+            StatusErrorId::FhExpired => Ok(Self::FhExpired),
+            StatusErrorId::ShareDenied => Ok(Self::ShareDenied),
+            StatusErrorId::WrongSec => Ok(Self::WrongSec),
+            StatusErrorId::ClidInUse => Ok(Self::ClidInUse),
+            StatusErrorId::Moved => Ok(Self::Moved),
+            StatusErrorId::NoFileHandle => Ok(Self::NoFileHandle),
+            StatusErrorId::MinorVersMismatch => Ok(Self::MinorVersMismatch),
+            StatusErrorId::StaleClientId => Ok(Self::StaleClientId),
+            StatusErrorId::StaleStateId => Ok(Self::StaleStateId),
+            StatusErrorId::OldStateId => Ok(Self::OldStateId),
+            StatusErrorId::BadStateId => Ok(Self::BadStateId),
+            StatusErrorId::BadSeqId => Ok(Self::BadSeqId),
+            StatusErrorId::NotSame => Ok(Self::NotSame),
+            StatusErrorId::LockRange => Ok(Self::LockRange),
+            StatusErrorId::Symlink => Ok(Self::Symlink),
+            StatusErrorId::RestoreFh => Ok(Self::RestoreFh),
+            StatusErrorId::LeaseMoved => Ok(Self::LeaseMoved),
+            StatusErrorId::AttrNotSupported => Ok(Self::AttrNotSupported),
+            StatusErrorId::NoGrace => Ok(Self::NoGrace),
+            StatusErrorId::ReclaimBad => Ok(Self::ReclaimBad),
+            StatusErrorId::ReclaimConflict => Ok(Self::ReclaimConflict),
+            StatusErrorId::BadXdr => Ok(Self::BadXdr),
+            StatusErrorId::LocksHeld => Ok(Self::LocksHeld),
+            StatusErrorId::OpenMode => Ok(Self::OpenMode),
+            StatusErrorId::BadOwner => Ok(Self::BadOwner),
+            StatusErrorId::BadChar => Ok(Self::BadChar),
+            StatusErrorId::BadName => Ok(Self::BadName),
+            StatusErrorId::BadRange => Ok(Self::BadRange),
+            StatusErrorId::LockNotSupported => Ok(Self::LockNotSupported),
+            StatusErrorId::OpIllegal => Ok(Self::OpIllegal),
+            StatusErrorId::Deadlock => Ok(Self::Deadlock),
+            StatusErrorId::FileOpen => Ok(Self::FileOpen),
+            StatusErrorId::AdminRevoked => Ok(Self::AdminRevoked),
+            StatusErrorId::CbPathDown => Ok(Self::CbPathDown),
+            StatusErrorId::BadIoMode => Ok(Self::BadIoMode),
+            StatusErrorId::BadLayout => Ok(Self::BadLayout),
+            StatusErrorId::BadSessionDigest => Ok(Self::BadSessionDigest),
+            StatusErrorId::BadSession => Ok(Self::BadSession),
+            StatusErrorId::BadSlot => Ok(Self::BadSlot),
+            StatusErrorId::CompleteAlready => Ok(Self::CompleteAlready),
+            StatusErrorId::ConnNotBoundToSession => Ok(Self::ConnNotBoundToSession),
+            StatusErrorId::DelegAlreadyWanted => Ok(Self::DelegAlreadyWanted),
+            StatusErrorId::BackChanBusy => Ok(Self::BackChanBusy),
+            StatusErrorId::LayoutTryLater => Ok(Self::LayoutTryLater),
+            StatusErrorId::LayoutUnavailable => Ok(Self::LayoutUnavailable),
+            StatusErrorId::NoMatchingLayout => Ok(Self::NoMatchingLayout),
+            StatusErrorId::RecallConflict => Ok(Self::RecallConflict),
+            StatusErrorId::UnknownLayoutType => Ok(Self::UnknownLayoutType),
+            StatusErrorId::SeqMisordered => Ok(Self::SeqMisordered),
+            StatusErrorId::SequencePos => Ok(Self::SequencePos),
+            StatusErrorId::ReqTooBig => Ok(Self::ReqTooBig),
+            StatusErrorId::RepTooBig => Ok(Self::RepTooBig),
+            StatusErrorId::RepTooBigToCache => Ok(Self::RepTooBigToCache),
+            StatusErrorId::RetryUncachedRep => Ok(Self::RetryUncachedRep),
+            StatusErrorId::UnsafeCompound => Ok(Self::UnsafeCompound),
+            StatusErrorId::TooManyOps => Ok(Self::TooManyOps),
+            StatusErrorId::OpNotInSession => Ok(Self::OpNotInSession),
+            StatusErrorId::HashAlgUnsupported => Ok(Self::HashAlgUnsupported),
+            StatusErrorId::ClientIdBusy => Ok(Self::ClientIdBusy),
+            StatusErrorId::PnfsIoHole => Ok(Self::PnfsIoHole),
+            StatusErrorId::SeqFalseRetry => Ok(Self::SeqFalseRetry),
+            StatusErrorId::BadHighSlot => Ok(Self::BadHighSlot),
+            StatusErrorId::DeadSession => Ok(Self::DeadSession),
+            StatusErrorId::EncrAlgUnsupported => Ok(Self::EncrAlgUnsupported),
+            StatusErrorId::PnfsNoLayout => Ok(Self::PnfsNoLayout),
+            StatusErrorId::NotOnlyOp => Ok(Self::NotOnlyOp),
+            StatusErrorId::WrongCred => Ok(Self::WrongCred),
+            StatusErrorId::WrongType => Ok(Self::WrongType),
+            StatusErrorId::DirDelegUnavail => Ok(Self::DirDelegUnavail),
+            StatusErrorId::RejectDeleg => Ok(Self::RejectDeleg),
+            StatusErrorId::ReturnConflict => Ok(Self::ReturnConflict),
+            StatusErrorId::DelegRevoked => Ok(Self::DelegRevoked),
+            v => Err(format!("{v:?} has args")),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
@@ -617,11 +843,20 @@ where
                             .ok_or(serde::de::Error::custom("expected value"))?,
                     ))
                 } else {
-                    Ok(StatusResult::Err(disc.try_into().map_err(|_| {
+                    let err_id: StatusErrorId = disc.try_into().map_err(|_| {
                         serde::de::Error::custom(format!(
                             "unexpected value {disc:?} for StatusError"
                         ))
-                    })?))
+                    })?;
+                    if err_id == StatusErrorId::Denied {
+                        Ok(StatusResult::Err(StatusError::Denied {
+                            denied: seq
+                                .next_element()?
+                                .ok_or(serde::de::Error::custom("expected denied"))?,
+                        }))
+                    } else {
+                        Ok(StatusResult::Err(err_id.try_into().unwrap()))
+                    }
                 }
             }
         }
@@ -716,7 +951,8 @@ pub enum FileAttribute {
     RetentevtSet(RetentionSet) = FileAttributeId::RetentevtSet as u32,
     RetentionHold(u64) = FileAttributeId::RetentionHold as u32,
     ModeSetMasked(ModeMasked) = FileAttributeId::ModeSetMasked as u32,
-    SuppattrExclcreat(EnumSet<FileAttributeId>) = FileAttributeId::SuppattrExclcreat as u32,
+    SupportedAttrsExclusiveCreate(EnumSet<FileAttributeId>) =
+        FileAttributeId::SupportedAttrsExclusiveCreate as u32,
     FsCharsetCap(u32) = FileAttributeId::FsCharsetCap as u32,
 }
 
@@ -797,7 +1033,9 @@ impl ToId<FileAttributeId> for FileAttribute {
             Self::RetentevtSet(..) => FileAttributeId::RetentevtSet,
             Self::RetentionHold(..) => FileAttributeId::RetentionHold,
             Self::ModeSetMasked(..) => FileAttributeId::ModeSetMasked,
-            Self::SuppattrExclcreat(..) => FileAttributeId::SuppattrExclcreat,
+            Self::SupportedAttrsExclusiveCreate(..) => {
+                FileAttributeId::SupportedAttrsExclusiveCreate
+            }
             Self::FsCharsetCap(..) => FileAttributeId::FsCharsetCap,
         }
     }
@@ -896,7 +1134,7 @@ pub struct LockUArgs {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-pub struct LookupArgs {
+pub struct LookUpArgs {
     pub object_name: String,
 }
 
@@ -1488,7 +1726,7 @@ pub enum OperationId {
     PutRootFh = 24,
     Read = 25,
     ReadDir = 26,
-    Readlink = 27,
+    ReadLink = 27,
     Remove = 28,
     Rename = 29,
     RestoreFh = 31,
@@ -1533,7 +1771,7 @@ pub enum ArgOp {
     Lock(LockArgs) = OperationId::Lock as u32,
     LockT(LockTArgs) = OperationId::LockT as u32,
     LockU(LockUArgs) = OperationId::LockU as u32,
-    LookUp(LookupArgs) = OperationId::LookUp as u32,
+    LookUp(LookUpArgs) = OperationId::LookUp as u32,
     LookUpP = OperationId::LookUpP as u32,
     NVerify(NVerifyArgs) = OperationId::NVerify as u32,
     Open(OpenArgs) = OperationId::Open as u32,
@@ -1544,7 +1782,7 @@ pub enum ArgOp {
     PutRootFh = OperationId::PutRootFh as u32,
     Read(ReadArgs) = OperationId::Read as u32,
     ReadDir(ReadDirArgs) = OperationId::ReadDir as u32,
-    Readlink = OperationId::Readlink as u32,
+    ReadLink = OperationId::ReadLink as u32,
     Remove(RemoveArgs) = OperationId::Remove as u32,
     Rename(RenameArgs) = OperationId::Rename as u32,
     RestoreFh = OperationId::RestoreFh as u32,
@@ -1586,4 +1824,424 @@ pub struct DirectoryList {
     #[serde(with = "xdr_extras::list")]
     pub entries: Vec<DirectoryEntry>,
     pub eof: bool,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct AccessRes {
+    pub supported: Access,
+    pub access: Access,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct CloseRes {
+    pub open_state_id: StateId,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct CommitRes {
+    pub write_verifier: Verifier,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct ChangeId(u64);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ChangeInfo {
+    pub atomic: bool,
+    pub before: ChangeId,
+    pub after: ChangeId,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct CreateRes {
+    pub change_info: ChangeInfo,
+    pub attribute_set: EnumSet<FileAttributeId>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct GetAttrRes {
+    pub object_attributes: FileAttributes,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct GetFhRes {
+    pub object: FileHandle,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LinkRes {
+    pub change_info: ChangeInfo,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LockRes {
+    pub lock_state_id: StateId,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LockURes {
+    pub lock_state_id: StateId,
+}
+
+bitflags! {
+    #[derive(PartialEq, Eq, Copy, Clone, Debug)]
+    pub struct OpenResult: u32 {
+        const CONFIRM      = 0x00000002;
+        const LOCKTYPE_POSIX = 0x00000004;
+        const PRESERVE_UNLINKED = 0x00000008;
+        const MAY_NOTIFY_LOCK = 0x00000020;
+    }
+}
+
+impl_serde_for_bitflags!(OpenResult);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct OpenReadDelegation {
+    pub state_id: StateId,
+    pub recall: bool,
+    pub permissions: Ace,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct ModifiedLimit {
+    pub num_blocks: u32,
+    pub bytes_per_block: u32,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum SpaceLimit {
+    Size { file_size: u64 } = 1,
+    Blocks { modified_blocks: ModifiedLimit } = 2,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct OpenWriteDelegation {
+    pub state_id: StateId,
+    pub recall: bool,
+    pub space_limit: SpaceLimit,
+    pub permissions: Ace,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum OpenNoneDelegation {
+    NotWanted = 0,
+    Contention { server_will_push_delegation: bool } = 1,
+    Resource { server_will_signal_available: bool } = 2,
+    NotSupportedFileType = 3,
+    WriteDelegationNotSupportedFileType = 4,
+    NotSupportedUpgrade = 5,
+    NotSupportedDowngrade = 6,
+    Cancelled = 7,
+    IsDir = 8,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum OpenDelegation {
+    None = OpenDelegationType::None as u32,
+    Read { read: OpenReadDelegation } = OpenDelegationType::Read as u32,
+    Write { write: OpenWriteDelegation } = OpenDelegationType::Write as u32,
+    NoneExt { why_none: OpenNoneDelegation } = OpenDelegationType::NoneExt as u32,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct OpenRes {
+    pub state_id: StateId,
+    pub change_info: ChangeInfo,
+    pub result_flags: OpenResult,
+    pub attribute_set: EnumSet<FileAttributeId>,
+    pub delegation: OpenDelegation,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct OpenDowngradeRes {
+    pub open_state_id: StateId,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ReadRes {
+    pub eof: bool,
+    #[serde(with = "serde_bytes")]
+    pub data: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ReadDirRes {
+    pub cookie_verifier: Verifier,
+    pub reply: DirectoryList,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ReadLinkRes {
+    pub link: String,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct RemoveRes {
+    pub change_info: ChangeInfo,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct RenameRes {
+    pub source_change_info: ChangeInfo,
+    pub target_change_info: ChangeInfo,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+pub struct Qop(u32);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct RpcSecGssInfo {
+    pub oid: SecOid,
+    pub qop: Qop,
+    pub service: RpcGssService,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum SecurityInfo {
+    None = AuthFlavor::None as u32,
+    Sys = AuthFlavor::Sys as u32,
+    RpcSecGss { flavor_info: RpcSecGssInfo } = AuthFlavor::RpcSecGss as u32,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SecInfoRes {
+    pub body: Vec<SecurityInfo>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SetAttrRes {
+    pub status: StatusResult<()>,
+    pub attr_set: EnumSet<FileAttributeId>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct WriteRes {
+    pub count: u32,
+    pub committed: StableHow,
+    pub write_veritifer: Verifier,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct BindConnToSessionRes {
+    pub session_id: SessionId,
+    pub direction: ChannelDirectionFromServer,
+    pub use_connection_in_rdma_mode: bool,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ServerOwner {
+    pub minor_id: u64,
+    #[serde(with = "serde_bytes")]
+    pub major_id: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ServerScope(#[serde(with = "serde_bytes")] pub Vec<u8>);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct ExchangeIdRes {
+    pub client_id: ClientId,
+    pub sequence_id: SequenceId,
+    pub flags: ExchangeIdFlags,
+    pub state_protect: StateProtect,
+    pub server_owner: ServerOwner,
+    pub server_scope: ServerScope,
+    pub server_impl_id: Option<ImplId>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct CreateSessionRes {
+    pub session_id: SessionId,
+    pub seqeunce: SequenceId,
+    pub flags: CreateSessionFlags,
+    pub fore_channel_attrs: ChannelAttrs,
+    pub back_channel_attrs: ChannelAttrs,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct GetDirDelegationRes {
+    pub cookie_verifier: Verifier,
+    pub state_id: StateId,
+    pub notification: EnumSet<FileAttributeId>,
+    pub child_attributes: EnumSet<FileAttributeId>,
+    pub dir_attributes: EnumSet<FileAttributeId>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct DeviceAddr {
+    pub layout_type: LayoutType,
+    #[serde(with = "serde_bytes")]
+    pub body: Vec<u8>,
+}
+
+#[derive(
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    PartialEq,
+    Eq,
+    Copy,
+    Clone,
+    Debug,
+    PartialOrd,
+    Ord,
+    TryFromPrimitive,
+    IntoPrimitive,
+)]
+#[repr(u32)]
+pub enum NotifyDeviceIdType {
+    Change = 1,
+    Delete = 2,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct GetDeviceInfoRes {
+    pub device_addr: DeviceAddr,
+    pub notification: EnumSet<NotifyDeviceIdType>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct GetDeviceListRes {
+    pub cookie: Cookie,
+    pub cookie_verifier: Verifier,
+    pub device_id_list: Vec<DeviceId>,
+    pub eof: bool,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LayoutCommitRes {
+    pub new_size: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LayoutContent {
+    pub type_: LayoutType,
+    #[serde(with = "serde_bytes")]
+    pub body: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct Layout {
+    pub offset: u64,
+    pub length: u64,
+    pub io_mode: LayoutIoMode,
+    pub content: LayoutContent,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LayoutGetRes {
+    pub return_on_close: bool,
+    pub state_id: StateId,
+    pub layout: Vec<Layout>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct LayoutReturnRes {
+    pub state_id: Option<StateId>,
+}
+
+bitflags! {
+    #[derive(PartialEq, Eq, Copy, Clone, Debug)]
+    pub struct SequenceStatusFlags: u32 {
+        const CB_PATH_DOWN                  = 0x00000001;
+        const CB_GSS_CONTEXTS_EXPIRING      = 0x00000002;
+        const CB_GSS_CONTEXTS_EXPIRED       = 0x00000004;
+        const EXPIRED_ALL_STATE_REVOKED     = 0x00000008;
+        const EXPIRED_SOME_STATE_REVOKED    = 0x00000010;
+        const ADMIN_STATE_REVOKED           = 0x00000020;
+        const RECALLABLE_STATE_REVOKED      = 0x00000040;
+        const LEASE_MOVED                   = 0x00000080;
+        const RESTART_RECLAIM_NEEDED        = 0x00000100;
+        const CB_PATH_DOWN_SESSION          = 0x00000200;
+        const BACKCHANNEL_FAULT             = 0x00000400;
+        const DEVID_CHANGED                 = 0x00000800;
+        const DEVID_DELETED                 = 0x00001000;
+    }
+}
+
+impl_serde_for_bitflags!(SequenceStatusFlags);
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SequenceRes {
+    pub session_id: SessionId,
+    pub sequence_id: SequenceId,
+    pub slot_id: SlotId,
+    pub highest_slot_id: SlotId,
+    pub target_highest_slot_id: SlotId,
+    pub status_flags: SequenceStatusFlags,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SetSsvRes {
+    #[serde(with = "serde_bytes")]
+    pub digest: Vec<u8>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct TestStateIdRes {
+    pub status_codes: Vec<StatusResult<()>>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct WantDelegationRes {
+    pub delegation: OpenDelegation,
+}
+
+#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[repr(u32)]
+pub enum ResOp {
+    Access(StatusResult<AccessRes>) = OperationId::Access as u32,
+    Close(StatusResult<CloseRes>) = OperationId::Close as u32,
+    Commit(StatusResult<CommitRes>) = OperationId::Commit as u32,
+    Create(StatusResult<CreateRes>) = OperationId::Create as u32,
+    DelegPurge(StatusResult<()>) = OperationId::DelegPurge as u32,
+    DelegReturn(StatusResult<()>) = OperationId::DelegReturn as u32,
+    GetAttr(StatusResult<GetAttrRes>) = OperationId::GetAttr as u32,
+    GetFh(StatusResult<GetFhRes>) = OperationId::GetFh as u32,
+    Link(StatusResult<LinkRes>) = OperationId::Link as u32,
+    Lock(StatusResult<LockRes>) = OperationId::Lock as u32,
+    LockT(StatusResult<()>) = OperationId::LockT as u32,
+    LockU(StatusResult<LockURes>) = OperationId::LockU as u32,
+    LookUp(StatusResult<()>) = OperationId::LookUp as u32,
+    LookUpP(StatusResult<()>) = OperationId::LookUpP as u32,
+    NVerify(StatusResult<()>) = OperationId::NVerify as u32,
+    Open(StatusResult<OpenRes>) = OperationId::Open as u32,
+    OpenAttr(StatusResult<()>) = OperationId::OpenAttr as u32,
+    OpenDowngrade(StatusResult<OpenDowngradeRes>) = OperationId::OpenDowngrade as u32,
+    PutFh(StatusResult<()>) = OperationId::PutFh as u32,
+    PutPubFh(StatusResult<()>) = OperationId::PutPubFh as u32,
+    PutRootFh(StatusResult<()>) = OperationId::PutRootFh as u32,
+    Read(StatusResult<ReadRes>) = OperationId::Read as u32,
+    ReadDir(StatusResult<ReadDirRes>) = OperationId::ReadDir as u32,
+    ReadLink(StatusResult<ReadLinkRes>) = OperationId::ReadLink as u32,
+    Remove(StatusResult<RemoveRes>) = OperationId::Remove as u32,
+    Rename(StatusResult<RenameRes>) = OperationId::Rename as u32,
+    RestoreFh(StatusResult<()>) = OperationId::RestoreFh as u32,
+    SaveFh(StatusResult<()>) = OperationId::SaveFh as u32,
+    SecInfo(StatusResult<SecInfoRes>) = OperationId::SecInfo as u32,
+    SetAttr(SetAttrRes) = OperationId::SetAttr as u32,
+    Verify(StatusResult<()>) = OperationId::Verify as u32,
+    Write(StatusResult<WriteRes>) = OperationId::Write as u32,
+    BackchannelCtl(StatusResult<()>) = OperationId::BackchannelCtl as u32,
+    BindConnToSession(StatusResult<BindConnToSessionRes>) = OperationId::BindConnToSession as u32,
+    ExchangeId(StatusResult<ExchangeIdRes>) = OperationId::ExchangeId as u32,
+    CreateSession(StatusResult<CreateSessionRes>) = OperationId::CreateSession as u32,
+    DestroySession(StatusResult<()>) = OperationId::DestroySession as u32,
+    FreeStateid(StatusResult<()>) = OperationId::FreeStateid as u32,
+    GetDirDelegation(StatusResult<GetDirDelegationRes>) = OperationId::GetDirDelegation as u32,
+    GetDeviceInfo(StatusResult<GetDeviceInfoRes>) = OperationId::GetDeviceInfo as u32,
+    GetDeviceList(StatusResult<GetDeviceListRes>) = OperationId::GetDeviceList as u32,
+    LayoutCommit(StatusResult<LayoutCommitRes>) = OperationId::LayoutCommit as u32,
+    LayoutGet(StatusResult<LayoutGetRes>) = OperationId::LayoutGet as u32,
+    LayoutReturn(StatusResult<LayoutReturnRes>) = OperationId::LayoutReturn as u32,
+    SecInfoNoName(StatusResult<SecInfoRes>) = OperationId::SecInfoNoName as u32,
+    Sequence(StatusResult<SequenceRes>) = OperationId::Sequence as u32,
+    SetSsv(StatusResult<SetSsvRes>) = OperationId::SetSsv as u32,
+    TestStateId(StatusResult<TestStateIdRes>) = OperationId::TestStateId as u32,
+    WantDelegation(StatusResult<WantDelegationRes>) = OperationId::WantDelegation as u32,
+    DestroyClientId(StatusResult<()>) = OperationId::DestroyClientId as u32,
+    ReclaimComplete(StatusResult<()>) = OperationId::ReclaimComplete as u32,
 }
