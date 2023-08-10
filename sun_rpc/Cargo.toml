@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde-xdr = "*"
 serde = { version = "*", features = ["derive"] }
+serde-xdr = "*"
+serde_bytes = "*"
 xdr_extras = { version = "*", path = "../xdr_extras" }

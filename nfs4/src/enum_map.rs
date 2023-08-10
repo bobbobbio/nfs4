@@ -1,3 +1,5 @@
+// Copyright 2023 Remi Bernotavicius
+
 use derive_more::From;
 use serde::{
     de::{DeserializeOwned, Deserializer},
@@ -78,6 +80,28 @@ where
 
 impl<K, V> EnumMap<K, V>
 where
+    K: Ord + Copy,
+{
+    pub fn get(&self, key: K) -> Option<&V> {
+        self.0.get(&key)
+    }
+
+    pub fn remove(&mut self, key: K) -> Option<V> {
+        self.0.remove(&key)
+    }
+}
+
+impl<K> EnumSet<K>
+where
+    K: Ord + Copy,
+{
+    pub fn remove(&mut self, key: K) -> bool {
+        self.0.remove(&key)
+    }
+}
+
+impl<K, V> EnumMap<K, V>
+where
     K: Into<u32> + Copy + Ord,
     V: Serialize,
 {
@@ -92,6 +116,25 @@ where
             body.extend(serialized.into_iter().skip(4));
         }
         EnumMapRaw { map, body }
+    }
+}
+
+impl<K, V> EnumMap<K, V>
+where
+    K: Ord,
+{
+    pub fn get_as<'a, T>(&'a mut self, key: K) -> Option<&'a T>
+    where
+        &'a T: TryFrom<&'a V>,
+    {
+        self.0.get(&key).map(|v| v.try_into().ok()).flatten()
+    }
+
+    pub fn remove_as<T>(&mut self, key: K) -> Option<T>
+    where
+        T: TryFrom<V>,
+    {
+        self.0.remove(&key).map(|v| v.try_into().ok()).flatten()
     }
 }
 

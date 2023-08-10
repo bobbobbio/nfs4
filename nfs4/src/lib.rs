@@ -2,6 +2,8 @@
 
 use bitflags::bitflags;
 use bitflags_serde_shim::impl_serde_for_bitflags;
+use derive_more::{From, TryInto};
+use enum_as_inner::EnumAsInner;
 pub use enum_map::{EnumMap, EnumSet, ToId};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::{
@@ -9,6 +11,7 @@ use serde::{
     ser::{SerializeStruct as _, Serializer},
     Deserialize, Serialize,
 };
+use std::fmt;
 use sun_rpc::{AuthFlavor, AuthSysParameters};
 use xdr_extras::{DeserializeWithDiscriminant, SerializeWithDiscriminant};
 
@@ -21,6 +24,13 @@ pub struct CompoundArgs {
     pub tag: String,
     pub minor_version: u32,
     pub arg_array: Vec<ArgOp>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct CompoundRes {
+    pub status: StatusResult<()>,
+    pub tag: String,
+    pub res_array: Vec<ResOp>,
 }
 
 bitflags! {
@@ -45,11 +55,27 @@ pub struct AccessArgs {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct StateId {
     pub sequence_id: u32,
+    #[serde(with = "xdr_extras::array_as_struct")]
     pub other: [u8; 12],
+}
+
+impl StateId {
+    pub fn anonymous() -> Self {
+        Self {
+            sequence_id: 0,
+            other: [0; 12],
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct SequenceId(pub u32);
+
+impl SequenceId {
+    pub fn incr(&mut self) {
+        self.0 += 1;
+    }
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct CloseArgs {
@@ -338,7 +364,7 @@ pub struct LockDenied {
     TryFromPrimitive,
 )]
 #[repr(u32)]
-pub enum StatusErrorId {
+pub enum StatusError {
     Perm = 1,
     NoEnt = 2,
     Io = 5,
@@ -441,224 +467,6 @@ pub enum StatusErrorId {
     RejectDeleg = 10085,
     ReturnConflict = 10086,
     DelegRevoked = 10087,
-}
-
-#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
-#[repr(u32)]
-pub enum StatusError {
-    Perm = StatusErrorId::Perm as u32,
-    NoEnt = StatusErrorId::NoEnt as u32,
-    Io = StatusErrorId::Io as u32,
-    NxIo = StatusErrorId::NxIo as u32,
-    Access = StatusErrorId::Access as u32,
-    Exist = StatusErrorId::Exist as u32,
-    XDev = StatusErrorId::XDev as u32,
-    NotDir = StatusErrorId::NotDir as u32,
-    Isdir = StatusErrorId::Isdir as u32,
-    Inval = StatusErrorId::Inval as u32,
-    FBig = StatusErrorId::FBig as u32,
-    NoSpc = StatusErrorId::NoSpc as u32,
-    RoFs = StatusErrorId::RoFs as u32,
-    MLink = StatusErrorId::MLink as u32,
-    NameTooLong = StatusErrorId::NameTooLong as u32,
-    NotEmpty = StatusErrorId::NotEmpty as u32,
-    DQuot = StatusErrorId::DQuot as u32,
-    Stale = StatusErrorId::Stale as u32,
-    BadHandle = StatusErrorId::BadHandle as u32,
-    BadCookie = StatusErrorId::BadCookie as u32,
-    NotSupported = StatusErrorId::NotSupported as u32,
-    TooSmall = StatusErrorId::TooSmall as u32,
-    ServerFault = StatusErrorId::ServerFault as u32,
-    BadType = StatusErrorId::BadType as u32,
-    Delay = StatusErrorId::Delay as u32,
-    Same = StatusErrorId::Same as u32,
-    Denied { denied: LockDenied } = StatusErrorId::Denied as u32,
-    Expired = StatusErrorId::Expired as u32,
-    Locked = StatusErrorId::Locked as u32,
-    Grace = StatusErrorId::Grace as u32,
-    FhExpired = StatusErrorId::FhExpired as u32,
-    ShareDenied = StatusErrorId::ShareDenied as u32,
-    WrongSec = StatusErrorId::WrongSec as u32,
-    ClidInUse = StatusErrorId::ClidInUse as u32,
-    Moved = StatusErrorId::Moved as u32,
-    NoFileHandle = StatusErrorId::NoFileHandle as u32,
-    MinorVersMismatch = StatusErrorId::MinorVersMismatch as u32,
-    StaleClientId = StatusErrorId::StaleClientId as u32,
-    StaleStateId = StatusErrorId::StaleStateId as u32,
-    OldStateId = StatusErrorId::OldStateId as u32,
-    BadStateId = StatusErrorId::BadStateId as u32,
-    BadSeqId = StatusErrorId::BadSeqId as u32,
-    NotSame = StatusErrorId::NotSame as u32,
-    LockRange = StatusErrorId::LockRange as u32,
-    Symlink = StatusErrorId::Symlink as u32,
-    RestoreFh = StatusErrorId::RestoreFh as u32,
-    LeaseMoved = StatusErrorId::LeaseMoved as u32,
-    AttrNotSupported = StatusErrorId::AttrNotSupported as u32,
-    NoGrace = StatusErrorId::NoGrace as u32,
-    ReclaimBad = StatusErrorId::ReclaimBad as u32,
-    ReclaimConflict = StatusErrorId::ReclaimConflict as u32,
-    BadXdr = StatusErrorId::BadXdr as u32,
-    LocksHeld = StatusErrorId::LocksHeld as u32,
-    OpenMode = StatusErrorId::OpenMode as u32,
-    BadOwner = StatusErrorId::BadOwner as u32,
-    BadChar = StatusErrorId::BadChar as u32,
-    BadName = StatusErrorId::BadName as u32,
-    BadRange = StatusErrorId::BadRange as u32,
-    LockNotSupported = StatusErrorId::LockNotSupported as u32,
-    OpIllegal = StatusErrorId::OpIllegal as u32,
-    Deadlock = StatusErrorId::Deadlock as u32,
-    FileOpen = StatusErrorId::FileOpen as u32,
-    AdminRevoked = StatusErrorId::AdminRevoked as u32,
-    CbPathDown = StatusErrorId::CbPathDown as u32,
-    BadIoMode = StatusErrorId::BadIoMode as u32,
-    BadLayout = StatusErrorId::BadLayout as u32,
-    BadSessionDigest = StatusErrorId::BadSessionDigest as u32,
-    BadSession = StatusErrorId::BadSession as u32,
-    BadSlot = StatusErrorId::BadSlot as u32,
-    CompleteAlready = StatusErrorId::CompleteAlready as u32,
-    ConnNotBoundToSession = StatusErrorId::ConnNotBoundToSession as u32,
-    DelegAlreadyWanted = StatusErrorId::DelegAlreadyWanted as u32,
-    BackChanBusy = StatusErrorId::BackChanBusy as u32,
-    LayoutTryLater = StatusErrorId::LayoutTryLater as u32,
-    LayoutUnavailable = StatusErrorId::LayoutUnavailable as u32,
-    NoMatchingLayout = StatusErrorId::NoMatchingLayout as u32,
-    RecallConflict = StatusErrorId::RecallConflict as u32,
-    UnknownLayoutType = StatusErrorId::UnknownLayoutType as u32,
-    SeqMisordered = StatusErrorId::SeqMisordered as u32,
-    SequencePos = StatusErrorId::SequencePos as u32,
-    ReqTooBig = StatusErrorId::ReqTooBig as u32,
-    RepTooBig = StatusErrorId::RepTooBig as u32,
-    RepTooBigToCache = StatusErrorId::RepTooBigToCache as u32,
-    RetryUncachedRep = StatusErrorId::RetryUncachedRep as u32,
-    UnsafeCompound = StatusErrorId::UnsafeCompound as u32,
-    TooManyOps = StatusErrorId::TooManyOps as u32,
-    OpNotInSession = StatusErrorId::OpNotInSession as u32,
-    HashAlgUnsupported = StatusErrorId::HashAlgUnsupported as u32,
-    ClientIdBusy = StatusErrorId::ClientIdBusy as u32,
-    PnfsIoHole = StatusErrorId::PnfsIoHole as u32,
-    SeqFalseRetry = StatusErrorId::SeqFalseRetry as u32,
-    BadHighSlot = StatusErrorId::BadHighSlot as u32,
-    DeadSession = StatusErrorId::DeadSession as u32,
-    EncrAlgUnsupported = StatusErrorId::EncrAlgUnsupported as u32,
-    PnfsNoLayout = StatusErrorId::PnfsNoLayout as u32,
-    NotOnlyOp = StatusErrorId::NotOnlyOp as u32,
-    WrongCred = StatusErrorId::WrongCred as u32,
-    WrongType = StatusErrorId::WrongType as u32,
-    DirDelegUnavail = StatusErrorId::DirDelegUnavail as u32,
-    RejectDeleg = StatusErrorId::RejectDeleg as u32,
-    ReturnConflict = StatusErrorId::ReturnConflict as u32,
-    DelegRevoked = StatusErrorId::DelegRevoked as u32,
-}
-
-impl TryFrom<StatusErrorId> for StatusError {
-    type Error = String;
-
-    fn try_from(id: StatusErrorId) -> Result<Self, Self::Error> {
-        match id {
-            StatusErrorId::Perm => Ok(Self::Perm),
-            StatusErrorId::NoEnt => Ok(Self::NoEnt),
-            StatusErrorId::Io => Ok(Self::Io),
-            StatusErrorId::NxIo => Ok(Self::NxIo),
-            StatusErrorId::Access => Ok(Self::Access),
-            StatusErrorId::Exist => Ok(Self::Exist),
-            StatusErrorId::XDev => Ok(Self::XDev),
-            StatusErrorId::NotDir => Ok(Self::NotDir),
-            StatusErrorId::Isdir => Ok(Self::Isdir),
-            StatusErrorId::Inval => Ok(Self::Inval),
-            StatusErrorId::FBig => Ok(Self::FBig),
-            StatusErrorId::NoSpc => Ok(Self::NoSpc),
-            StatusErrorId::RoFs => Ok(Self::RoFs),
-            StatusErrorId::MLink => Ok(Self::MLink),
-            StatusErrorId::NameTooLong => Ok(Self::NameTooLong),
-            StatusErrorId::NotEmpty => Ok(Self::NotEmpty),
-            StatusErrorId::DQuot => Ok(Self::DQuot),
-            StatusErrorId::Stale => Ok(Self::Stale),
-            StatusErrorId::BadHandle => Ok(Self::BadHandle),
-            StatusErrorId::BadCookie => Ok(Self::BadCookie),
-            StatusErrorId::NotSupported => Ok(Self::NotSupported),
-            StatusErrorId::TooSmall => Ok(Self::TooSmall),
-            StatusErrorId::ServerFault => Ok(Self::ServerFault),
-            StatusErrorId::BadType => Ok(Self::BadType),
-            StatusErrorId::Delay => Ok(Self::Delay),
-            StatusErrorId::Same => Ok(Self::Same),
-            StatusErrorId::Expired => Ok(Self::Expired),
-            StatusErrorId::Locked => Ok(Self::Locked),
-            StatusErrorId::Grace => Ok(Self::Grace),
-            StatusErrorId::FhExpired => Ok(Self::FhExpired),
-            StatusErrorId::ShareDenied => Ok(Self::ShareDenied),
-            StatusErrorId::WrongSec => Ok(Self::WrongSec),
-            StatusErrorId::ClidInUse => Ok(Self::ClidInUse),
-            StatusErrorId::Moved => Ok(Self::Moved),
-            StatusErrorId::NoFileHandle => Ok(Self::NoFileHandle),
-            StatusErrorId::MinorVersMismatch => Ok(Self::MinorVersMismatch),
-            StatusErrorId::StaleClientId => Ok(Self::StaleClientId),
-            StatusErrorId::StaleStateId => Ok(Self::StaleStateId),
-            StatusErrorId::OldStateId => Ok(Self::OldStateId),
-            StatusErrorId::BadStateId => Ok(Self::BadStateId),
-            StatusErrorId::BadSeqId => Ok(Self::BadSeqId),
-            StatusErrorId::NotSame => Ok(Self::NotSame),
-            StatusErrorId::LockRange => Ok(Self::LockRange),
-            StatusErrorId::Symlink => Ok(Self::Symlink),
-            StatusErrorId::RestoreFh => Ok(Self::RestoreFh),
-            StatusErrorId::LeaseMoved => Ok(Self::LeaseMoved),
-            StatusErrorId::AttrNotSupported => Ok(Self::AttrNotSupported),
-            StatusErrorId::NoGrace => Ok(Self::NoGrace),
-            StatusErrorId::ReclaimBad => Ok(Self::ReclaimBad),
-            StatusErrorId::ReclaimConflict => Ok(Self::ReclaimConflict),
-            StatusErrorId::BadXdr => Ok(Self::BadXdr),
-            StatusErrorId::LocksHeld => Ok(Self::LocksHeld),
-            StatusErrorId::OpenMode => Ok(Self::OpenMode),
-            StatusErrorId::BadOwner => Ok(Self::BadOwner),
-            StatusErrorId::BadChar => Ok(Self::BadChar),
-            StatusErrorId::BadName => Ok(Self::BadName),
-            StatusErrorId::BadRange => Ok(Self::BadRange),
-            StatusErrorId::LockNotSupported => Ok(Self::LockNotSupported),
-            StatusErrorId::OpIllegal => Ok(Self::OpIllegal),
-            StatusErrorId::Deadlock => Ok(Self::Deadlock),
-            StatusErrorId::FileOpen => Ok(Self::FileOpen),
-            StatusErrorId::AdminRevoked => Ok(Self::AdminRevoked),
-            StatusErrorId::CbPathDown => Ok(Self::CbPathDown),
-            StatusErrorId::BadIoMode => Ok(Self::BadIoMode),
-            StatusErrorId::BadLayout => Ok(Self::BadLayout),
-            StatusErrorId::BadSessionDigest => Ok(Self::BadSessionDigest),
-            StatusErrorId::BadSession => Ok(Self::BadSession),
-            StatusErrorId::BadSlot => Ok(Self::BadSlot),
-            StatusErrorId::CompleteAlready => Ok(Self::CompleteAlready),
-            StatusErrorId::ConnNotBoundToSession => Ok(Self::ConnNotBoundToSession),
-            StatusErrorId::DelegAlreadyWanted => Ok(Self::DelegAlreadyWanted),
-            StatusErrorId::BackChanBusy => Ok(Self::BackChanBusy),
-            StatusErrorId::LayoutTryLater => Ok(Self::LayoutTryLater),
-            StatusErrorId::LayoutUnavailable => Ok(Self::LayoutUnavailable),
-            StatusErrorId::NoMatchingLayout => Ok(Self::NoMatchingLayout),
-            StatusErrorId::RecallConflict => Ok(Self::RecallConflict),
-            StatusErrorId::UnknownLayoutType => Ok(Self::UnknownLayoutType),
-            StatusErrorId::SeqMisordered => Ok(Self::SeqMisordered),
-            StatusErrorId::SequencePos => Ok(Self::SequencePos),
-            StatusErrorId::ReqTooBig => Ok(Self::ReqTooBig),
-            StatusErrorId::RepTooBig => Ok(Self::RepTooBig),
-            StatusErrorId::RepTooBigToCache => Ok(Self::RepTooBigToCache),
-            StatusErrorId::RetryUncachedRep => Ok(Self::RetryUncachedRep),
-            StatusErrorId::UnsafeCompound => Ok(Self::UnsafeCompound),
-            StatusErrorId::TooManyOps => Ok(Self::TooManyOps),
-            StatusErrorId::OpNotInSession => Ok(Self::OpNotInSession),
-            StatusErrorId::HashAlgUnsupported => Ok(Self::HashAlgUnsupported),
-            StatusErrorId::ClientIdBusy => Ok(Self::ClientIdBusy),
-            StatusErrorId::PnfsIoHole => Ok(Self::PnfsIoHole),
-            StatusErrorId::SeqFalseRetry => Ok(Self::SeqFalseRetry),
-            StatusErrorId::BadHighSlot => Ok(Self::BadHighSlot),
-            StatusErrorId::DeadSession => Ok(Self::DeadSession),
-            StatusErrorId::EncrAlgUnsupported => Ok(Self::EncrAlgUnsupported),
-            StatusErrorId::PnfsNoLayout => Ok(Self::PnfsNoLayout),
-            StatusErrorId::NotOnlyOp => Ok(Self::NotOnlyOp),
-            StatusErrorId::WrongCred => Ok(Self::WrongCred),
-            StatusErrorId::WrongType => Ok(Self::WrongType),
-            StatusErrorId::DirDelegUnavail => Ok(Self::DirDelegUnavail),
-            StatusErrorId::RejectDeleg => Ok(Self::RejectDeleg),
-            StatusErrorId::ReturnConflict => Ok(Self::ReturnConflict),
-            StatusErrorId::DelegRevoked => Ok(Self::DelegRevoked),
-            v => Err(format!("{v:?} has args")),
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
@@ -778,16 +586,51 @@ pub struct MdsThreshold {
     hints: Vec<ThresholdItem>,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+struct OctalFmt<T>(T);
+
+impl<T> fmt::Debug for OctalFmt<T>
+where
+    T: fmt::Octal,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Octal::fmt(&self.0, f)
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone)]
 pub struct Mode(pub u32);
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
+impl fmt::Debug for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Mode").field(&OctalFmt(self.0)).finish()
+    }
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone)]
 pub struct ModeMasked(pub u32);
+
+impl fmt::Debug for ModeMasked {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Mode").field(&OctalFmt(self.0)).finish()
+    }
+}
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum StatusResult<T> {
     Ok(T),
     Err(StatusError),
+}
+
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub struct LockStatusError {
+    pub error: StatusError,
+    pub denied: Option<LockDenied>,
+}
+
+#[derive(PartialEq, Eq, Clone, Debug)]
+pub enum LockStatusResult<T> {
+    Ok(T),
+    Err(LockStatusError),
 }
 
 impl<T> Serialize for StatusResult<T>
@@ -843,25 +686,106 @@ where
                             .ok_or(serde::de::Error::custom("expected value"))?,
                     ))
                 } else {
-                    let err_id: StatusErrorId = disc.try_into().map_err(|_| {
+                    let err_id: StatusError = disc.try_into().map_err(|_| {
                         serde::de::Error::custom(format!(
                             "unexpected value {disc:?} for StatusError"
                         ))
                     })?;
-                    if err_id == StatusErrorId::Denied {
-                        Ok(StatusResult::Err(StatusError::Denied {
-                            denied: seq
-                                .next_element()?
-                                .ok_or(serde::de::Error::custom("expected denied"))?,
-                        }))
-                    } else {
-                        Ok(StatusResult::Err(err_id.try_into().unwrap()))
-                    }
+                    Ok(StatusResult::Err(err_id))
                 }
             }
         }
 
-        deserializer.deserialize_struct("StatusResult", &[], Visitor(std::marker::PhantomData))
+        deserializer.deserialize_struct(
+            "StatusResult",
+            &["disc", "value"],
+            Visitor(std::marker::PhantomData),
+        )
+    }
+}
+
+impl<T> Serialize for LockStatusResult<T>
+where
+    T: Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            Self::Ok(v) => {
+                let mut state = serializer.serialize_struct("LockStatusResult", 2)?;
+                state.serialize_field("discriminant", &0u32)?;
+                state.serialize_field("ok", v)?;
+                state.end()
+            }
+            Self::Err(LockStatusError { error, denied }) => {
+                let mut state = serializer.serialize_struct("LockStatusResult", 2)?;
+                state.serialize_field("error", error)?;
+                if error == &StatusError::Denied {
+                    state.serialize_field("denied", denied.as_ref().unwrap())?;
+                }
+                state.end()
+            }
+        }
+    }
+}
+
+impl<'de, T> Deserialize<'de> for LockStatusResult<T>
+where
+    T: Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct Visitor<T>(std::marker::PhantomData<T>);
+
+        impl<'de, T> serde::de::Visitor<'de> for Visitor<T>
+        where
+            T: Deserialize<'de>,
+        {
+            type Value = LockStatusResult<T>;
+
+            fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("LockStatusResult")
+            }
+
+            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+            where
+                A: serde::de::SeqAccess<'de>,
+            {
+                let disc: u32 = seq
+                    .next_element()?
+                    .ok_or(serde::de::Error::custom("expected discriminant"))?;
+                if disc == 0 {
+                    Ok(LockStatusResult::Ok(
+                        seq.next_element()?
+                            .ok_or(serde::de::Error::custom("expected value"))?,
+                    ))
+                } else {
+                    let error: StatusError = disc.try_into().map_err(|_| {
+                        serde::de::Error::custom(format!(
+                            "unexpected value {disc:?} for StatusError"
+                        ))
+                    })?;
+                    let denied = (error == StatusError::Denied)
+                        .then(|| {
+                            seq.next_element()?
+                                .ok_or(serde::de::Error::custom("expected denied"))
+                        })
+                        .transpose()?;
+
+                    Ok(LockStatusResult::Err(LockStatusError { error, denied }))
+                }
+            }
+        }
+
+        deserializer.deserialize_struct(
+            "LockStatusResult",
+            &["disc", "value", "denied"],
+            Visitor(std::marker::PhantomData),
+        )
     }
 }
 
@@ -874,7 +798,17 @@ pub struct Change(pub u64);
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct FileId(pub u64);
 
-#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[derive(
+    SerializeWithDiscriminant,
+    DeserializeWithDiscriminant,
+    EnumAsInner,
+    PartialEq,
+    Eq,
+    Clone,
+    Debug,
+    TryInto,
+)]
+#[try_into(owned, ref)]
 #[repr(u32)]
 pub enum FileAttribute {
     SupportedAttrs(EnumSet<FileAttributeId>) = FileAttributeId::SupportedAttrs as u32,
@@ -1063,7 +997,7 @@ pub struct DelegReturnArgs {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct GetAttrArgs {
-    attr_request: FileAttributes,
+    pub attr_request: EnumSet<FileAttributeId>,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
@@ -1113,6 +1047,7 @@ pub struct LockArgs {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct StateOwner {
     pub client_id: ClientId,
+    #[serde(with = "serde_bytes")]
     pub opaque: Vec<u8>,
 }
 
@@ -1267,14 +1202,14 @@ pub struct PutFhArgs {
 pub struct ReadArgs {
     pub state_id: StateId,
     pub offset: u64,
-    pub count: u64,
+    pub count: u32,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct Cookie(pub u64);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
-pub struct Verifier(pub [u8; 8]);
+pub struct Verifier(pub u64);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct ReadDirArgs {
@@ -1372,7 +1307,7 @@ pub struct BackchannelCtlArgs {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-pub struct SessionId([u8; 16]);
+pub struct SessionId(#[serde(with = "xdr_extras::array_as_struct")] pub [u8; 16]);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct BindConnToSessionArgs {
@@ -1384,6 +1319,7 @@ pub struct BindConnToSessionArgs {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct ClientOwner {
     pub verifier: Verifier,
+    #[serde(with = "serde_bytes")]
     pub owner_id: Vec<u8>,
 }
 
@@ -1484,6 +1420,7 @@ pub struct CreateSessionArgs {
     pub flags: CreateSessionFlags,
     pub fore_channel_attrs: ChannelAttrs,
     pub back_channel_attrs: ChannelAttrs,
+    pub program: u32,
     pub security_parameters: Vec<CallbackSecurityParameters>,
 }
 
@@ -1531,10 +1468,10 @@ pub struct GetDirDelegationArgs {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-pub struct DeviceId([u8; 16]);
+pub struct DeviceId(#[serde(with = "xdr_extras::array_as_struct")] pub [u8; 16]);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-pub struct Util(u32);
+pub struct Util(pub u32);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct GetDeviceInfoArgs {
@@ -1556,6 +1493,7 @@ pub struct GetDeviceListArgs {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct LayoutUpdate {
     pub type_: LayoutType,
+    #[serde(with = "serde_bytes")]
     pub body: Vec<u8>,
 }
 
@@ -1636,7 +1574,7 @@ pub struct SecInfoNoNameArgs {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-pub struct SlotId(u32);
+pub struct SlotId(pub u32);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct SequenceArgs {
@@ -1756,7 +1694,9 @@ pub enum OperationId {
     ReclaimComplete = 58,
 }
 
-#[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
+#[derive(
+    SerializeWithDiscriminant, DeserializeWithDiscriminant, From, PartialEq, Eq, Clone, Debug,
+)]
 #[repr(u32)]
 pub enum ArgOp {
     Access(AccessArgs) = OperationId::Access as u32,
@@ -2014,8 +1954,13 @@ pub struct SecInfoRes {
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct SetAttrRes {
-    pub status: StatusResult<()>,
     pub attr_set: EnumSet<FileAttributeId>,
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+pub struct SetAttrStatusResult {
+    pub status: StatusResult<()>,
+    pub res: SetAttrRes,
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
@@ -2056,7 +2001,7 @@ pub struct ExchangeIdRes {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct CreateSessionRes {
     pub session_id: SessionId,
-    pub seqeunce: SequenceId,
+    pub sequence_id: SequenceId,
     pub flags: CreateSessionFlags,
     pub fore_channel_attrs: ChannelAttrs,
     pub back_channel_attrs: ChannelAttrs,
@@ -2190,6 +2135,8 @@ pub struct WantDelegationRes {
     pub delegation: OpenDelegation,
 }
 
+pub type SecInfoNoNameRes = SecInfoRes;
+
 #[derive(SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Clone, Debug)]
 #[repr(u32)]
 pub enum ResOp {
@@ -2201,8 +2148,8 @@ pub enum ResOp {
     DelegReturn(StatusResult<()>) = OperationId::DelegReturn as u32,
     GetAttr(StatusResult<GetAttrRes>) = OperationId::GetAttr as u32,
     GetFh(StatusResult<GetFhRes>) = OperationId::GetFh as u32,
-    Link(StatusResult<LinkRes>) = OperationId::Link as u32,
-    Lock(StatusResult<LockRes>) = OperationId::Lock as u32,
+    Link(LockStatusResult<LinkRes>) = OperationId::Link as u32,
+    Lock(LockStatusResult<LockRes>) = OperationId::Lock as u32,
     LockT(StatusResult<()>) = OperationId::LockT as u32,
     LockU(StatusResult<LockURes>) = OperationId::LockU as u32,
     LookUp(StatusResult<()>) = OperationId::LookUp as u32,
@@ -2222,7 +2169,7 @@ pub enum ResOp {
     RestoreFh(StatusResult<()>) = OperationId::RestoreFh as u32,
     SaveFh(StatusResult<()>) = OperationId::SaveFh as u32,
     SecInfo(StatusResult<SecInfoRes>) = OperationId::SecInfo as u32,
-    SetAttr(SetAttrRes) = OperationId::SetAttr as u32,
+    SetAttr(SetAttrStatusResult) = OperationId::SetAttr as u32,
     Verify(StatusResult<()>) = OperationId::Verify as u32,
     Write(StatusResult<WriteRes>) = OperationId::Write as u32,
     BackchannelCtl(StatusResult<()>) = OperationId::BackchannelCtl as u32,

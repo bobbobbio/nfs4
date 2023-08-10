@@ -176,7 +176,10 @@ fn generate_deserialize(
                 }
 
                 ::serde::de::Deserializer::deserialize_struct(
-                    deserializer, #self_name, &[], Visitor(::std::marker::PhantomData)
+                    deserializer,
+                    #self_name,
+                    &["disc", "value"],
+                    Visitor(::std::marker::PhantomData)
                 )
             }
         }

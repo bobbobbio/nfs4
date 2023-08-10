@@ -17,6 +17,7 @@ resolver = "2"
 members = [
     "cli",
     "nfs4",
+    "nfs4_client",
     "sun_rpc",
     "sun_rpc_client",
     "vm_runner",

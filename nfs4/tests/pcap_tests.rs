@@ -292,3 +292,20 @@ fn directory_list_serialization_round_trip() {
     let actual_list: DirectoryList = serde_xdr::from_bytes(&expected).unwrap();
     assert_eq!(expected_list, actual_list);
 }
+
+#[test]
+fn session_id_serialization() {
+    use nfs4::SessionId;
+
+    let expected = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16];
+    let id = SessionId(expected.clone());
+
+    let actual = serde_xdr::to_bytes(&id).unwrap();
+    assert!(
+        &expected[..] == &actual[..],
+        "\nexpected = {expected:x?}\nactual   = {actual:x?}"
+    );
+
+    let actual_id: SessionId = serde_xdr::from_bytes(&expected[..]).unwrap();
+    assert_eq!(actual_id, id);
+}

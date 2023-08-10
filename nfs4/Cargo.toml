@@ -9,6 +9,7 @@ edition = "2021"
 bitflags = "*"
 bitflags_serde_shim = "*"
 derive_more = "*"
+enum-as-inner = "*"
 num_enum = "*"
 serde = { version = "*", features = ["derive"] }
 serde-xdr = "*"

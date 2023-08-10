@@ -1,7 +1,6 @@
 // Copyright 2023 Remi Bernotavicius
 
 use serde::{Deserialize, Serialize};
-use std::fmt;
 use xdr_extras::{DeserializeWithDiscriminant, SerializeWithDiscriminant};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -11,23 +10,6 @@ pub struct Xid(pub u32);
 pub struct Message<Args> {
     pub xid: Xid,
     pub body: MessageBody<Args>,
-}
-
-trait Procedure {
-    type CallArgs: Serialize
-        + for<'a> Deserialize<'a>
-        + PartialEq
-        + Eq
-        + PartialOrd
-        + Ord
-        + fmt::Debug;
-    type ReturnArgs: Serialize
-        + for<'a> Deserialize<'a>
-        + PartialEq
-        + Eq
-        + PartialOrd
-        + Ord
-        + fmt::Debug;
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
@@ -87,10 +69,10 @@ pub enum AuthFlavor {
 }
 
 #[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct Uid(u32);
+pub struct Uid(pub u32);
 
 #[derive(Serialize, Deserialize, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub struct Gid(u32);
+pub struct Gid(pub u32);
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct AuthSysParameters {
@@ -104,6 +86,7 @@ pub struct AuthSysParameters {
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub struct OpaqueAuth {
     pub flavor: AuthFlavor,
+    #[serde(with = "serde_bytes")]
     pub body: Vec<u8>, // limit of 400 bytes
 }
 
@@ -112,6 +95,13 @@ impl OpaqueAuth {
         Self {
             flavor: AuthFlavor::None,
             body: vec![],
+        }
+    }
+
+    pub fn auth_sys(params: AuthSysParameters) -> Self {
+        Self {
+            flavor: AuthFlavor::Sys,
+            body: serde_xdr::to_bytes(&params).unwrap(),
         }
     }
 }
