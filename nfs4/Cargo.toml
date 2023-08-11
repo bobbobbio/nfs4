@@ -8,13 +8,13 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bitflags = "*"
-bitflags_serde_shim = "*"
-derive_more = "*"
-enum-as-inner = "*"
-num_enum = "*"
-serde = { version = "*", features = ["derive"] }
-serde-xdr = "*"
-serde_bytes = "*"
-sun_rpc = { version = "*", path = "../sun_rpc" }
-xdr_extras = { version = "*", path = "../xdr_extras" }
+bitflags = "^2"
+bitflags_serde_shim = "^0.2"
+derive_more = "^0.99"
+enum-as-inner = "^0.6"
+num_enum = "^0.6"
+serde = { version = "^1", features = ["derive"] }
+serde-xdr = "^0.6"
+serde_bytes = "^0.11"
+sun_rpc = { version = "^0.1", path = "../sun_rpc" }
+xdr_extras = { version = "^0.1", path = "../xdr_extras" }

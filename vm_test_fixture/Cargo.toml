@@ -8,9 +8,9 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-vm_runner = { path = "../vm_runner", version = "*" }
+vm_runner = { path = "../vm_runner", version = "^0.1" }
 
 [build-dependencies]
-log = "*"
-simple-logging = "*"
-vm_runner = { path = "../vm_runner", version = "*" }
+log = "^0.4"
+simple-logging = "^2"
+vm_runner = { path = "../vm_runner", version = "^0.1" }

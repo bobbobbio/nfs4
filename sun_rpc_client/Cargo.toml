@@ -8,10 +8,10 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-derive_more = "*"
-sun_rpc = { version = "*", path = "../sun_rpc" }
-serde = "*"
-serde-xdr = "*"
+derive_more = "^0.99"
+sun_rpc = { version = "^0.1", path = "../sun_rpc" }
+serde = "^1"
+serde-xdr = "^0.6"
 
 [dev-dependencies]
-vm_test_fixture = { version = "*", path = "../vm_test_fixture" }
+vm_test_fixture = { version = "^0.1", path = "../vm_test_fixture" }

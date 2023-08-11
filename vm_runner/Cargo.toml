@@ -9,9 +9,9 @@ license = "MIT"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-http_io = "*"
-log = "*"
-qapi = { version = "*", features = ["qapi-qmp"] }
-rexpect = "*"
-simple-logging = "*"
-tempdir = "*"
+http_io = "^0.2"
+log = "^0.4"
+qapi = { version = "^0.13", features = ["qapi-qmp"] }
+rexpect = "^0.5"
+simple-logging = "^2"
+tempdir = "^0.3"

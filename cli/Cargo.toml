@@ -8,7 +8,7 @@ license = "MIT"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-indicatif = "*"
-nfs4_client = { version = "*", path = "../nfs4_client" }
-nfs4 = { version = "*", path = "../nfs4" }
-sun_rpc_client = { version = "*", path = "../sun_rpc_client" }
+indicatif = "^0.17"
+nfs4_client = { version = "^0.1", path = "../nfs4_client" }
+nfs4 = { version = "^0.1", path = "../nfs4" }
+sun_rpc_client = { version = "^0.1", path = "../sun_rpc_client" }

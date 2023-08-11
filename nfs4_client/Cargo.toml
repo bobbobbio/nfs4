@@ -8,9 +8,9 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-derive_more = "*"
-nfs4 = { version = "*", path = "../nfs4" }
-rand = "*"
-paste = "*"
-serde-xdr = "*"
-sun_rpc_client = { version = "*", path = "../sun_rpc_client" }
+derive_more = "^0.99"
+nfs4 = { version = "^0.1", path = "../nfs4" }
+rand = "^0.4"
+paste = "^1"
+serde-xdr = "^0.6"
+sun_rpc_client = { version = "^0.1", path = "../sun_rpc_client" }

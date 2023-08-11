@@ -8,7 +8,7 @@ license = "MIT"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde = { version = "*", features = ["derive"] }
-serde-xdr = "*"
-serde_bytes = "*"
-xdr_extras = { version = "*", path = "../xdr_extras" }
+serde = { version = "^1", features = ["derive"] }
+serde-xdr = "^0.6"
+serde_bytes = "^0.11"
+xdr_extras = { version = "^0.1", path = "../xdr_extras" }
