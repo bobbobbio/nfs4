@@ -123,7 +123,7 @@ impl<K, V> EnumMap<K, V>
 where
     K: Ord,
 {
-    pub fn get_as<'a, T>(&'a mut self, key: K) -> Option<&'a T>
+    pub fn get_as<'a, T>(&'a self, key: K) -> Option<&'a T>
     where
         &'a T: TryFrom<&'a V>,
     {

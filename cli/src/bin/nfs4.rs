@@ -1,14 +1,17 @@
 // Copyright 2023 Remi Bernotavicius
 
 use clap::{Parser, Subcommand};
+use indicatif::{ProgressBar, ProgressStyle};
 use nfs4::FileAttributeId;
 use nfs4_client::Result;
 use std::net::TcpStream;
+use std::path::PathBuf;
 
 #[derive(Subcommand)]
 enum Command {
-    GetAttr { path: String },
-    Download { remote: String, local: String },
+    GetAttr { path: PathBuf },
+    Download { remote: PathBuf, local: PathBuf },
+    Upload { local: PathBuf, remote: PathBuf },
 }
 
 #[derive(Parser)]
@@ -31,14 +34,39 @@ fn main() -> Result<()> {
             println!("{reply:#?}");
         }
         Command::Download { remote, local } => {
-            let mut reply = client.get_attr(&mut transport, &remote)?;
-            let handle = reply
-                .object_attributes
-                .remove_as(FileAttributeId::FileHandle)
-                .unwrap();
-            let file = std::fs::File::create(local)?;
-            client.read_all(&mut transport, handle, file)?;
-            println!("downloaded");
+            let local_file = if local.to_string_lossy().ends_with('/') {
+                local.join(remote.file_name().unwrap())
+            } else {
+                local
+            };
+
+            let mut remote_attrs = client.get_attr(&mut transport, &remote)?.object_attributes;
+            let size = remote_attrs.remove_as(FileAttributeId::Size).unwrap();
+            let handle = remote_attrs.remove_as(FileAttributeId::FileHandle).unwrap();
+
+            let progress = ProgressBar::new(size).with_style(
+                ProgressStyle::with_template("{wide_bar} {percent}% {binary_bytes_per_sec}")
+                    .unwrap(),
+            );
+            let file = std::fs::File::create(local_file)?;
+            client.read_all(&mut transport, handle, progress.wrap_write(file))?;
+        }
+        Command::Upload { local, remote } => {
+            let (parent_dir, name) = if remote.to_string_lossy().ends_with('/') {
+                (remote.as_ref(), local.file_name().unwrap())
+            } else {
+                (remote.parent().unwrap(), remote.file_name().unwrap())
+            };
+
+            let parent = client.look_up(&mut transport, parent_dir)?;
+            let handle = client.create_file(&mut transport, parent, name.to_str().unwrap())?;
+
+            let file = std::fs::File::open(local)?;
+            let progress = ProgressBar::new(file.metadata()?.len()).with_style(
+                ProgressStyle::with_template("{wide_bar} {percent}% {binary_bytes_per_sec}")
+                    .unwrap(),
+            );
+            client.write_all(&mut transport, handle, progress.wrap_read(file))?;
         }
     }
 

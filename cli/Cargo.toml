@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+indicatif = "*"
 nfs4_client = { version = "*", path = "../nfs4_client" }
 nfs4 = { version = "*", path = "../nfs4" }
 sun_rpc_client = { version = "*", path = "../sun_rpc_client" }

@@ -6,6 +6,7 @@ use paste::paste;
 use rand::Rng as _;
 use std::collections::VecDeque;
 use std::io;
+use std::path::{Component, Path};
 use sun_rpc_client::{RpcClient, Transport};
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -367,16 +368,21 @@ pub struct Client {
     raw_client: ClientWithoutSession,
     session: CreateSessionRes,
     sequence_id: SequenceId,
+    client_id: ClientId,
+    client_owner: ClientOwner,
+    max_read: u64,
+    max_write: u64,
 }
 
 impl Client {
     pub fn new(transport: &mut impl Transport) -> Result<Self> {
         let mut raw_client = ClientWithoutSession::new(RpcClient::new(NFS));
 
+        let client_owner = random_client_owner();
         let eid_res = raw_client.do_compound(
             transport,
             ExchangeIdArgs {
-                client_owner: random_client_owner(),
+                client_owner: client_owner.clone(),
                 flags: ExchangeIdFlags::empty(),
                 state_protect: StateProtect::None,
                 client_impl_id: None,
@@ -413,11 +419,34 @@ impl Client {
             },
         )?;
 
-        Ok(Self {
+        let mut client = Self {
             raw_client,
             session,
             sequence_id: SequenceId(1),
-        })
+            client_id,
+            client_owner,
+            max_read: 0,
+            max_write: 0,
+        };
+
+        let root_attrs = client
+            .do_compound(
+                transport,
+                ReturnSecond(
+                    (ReclaimCompleteArgs { one_fs: false }, PutRootFh),
+                    GetAttrArgs {
+                        attr_request: [FileAttributeId::MaxRead, FileAttributeId::MaxWrite]
+                            .into_iter()
+                            .collect(),
+                    },
+                ),
+            )?
+            .object_attributes;
+
+        client.max_read = *root_attrs.get_as(FileAttributeId::MaxRead).unwrap();
+        client.max_write = *root_attrs.get_as(FileAttributeId::MaxWrite).unwrap();
+
+        Ok(client)
     }
 
     fn do_compound<'a, Args>(
@@ -443,7 +472,11 @@ impl Client {
             .do_compound(transport, ReturnSecond(sequence, args))?)
     }
 
-    pub fn get_attr(&mut self, transport: &mut impl Transport, path: &str) -> Result<GetAttrRes> {
+    pub fn get_attr(
+        &mut self,
+        transport: &mut impl Transport,
+        path: impl AsRef<Path>,
+    ) -> Result<GetAttrRes> {
         let mut get_attr_res = self.do_compound(
             transport,
             ReturnSecond(
@@ -467,10 +500,11 @@ impl Client {
             ReturnSecond(
                 (
                     PutRootFh,
-                    Vec::from_iter(path.split("/").filter_map(|c| {
-                        (!c.is_empty()).then_some(LookUpArgs {
-                            object_name: c.into(),
-                        })
+                    Vec::from_iter(path.as_ref().components().filter_map(|c| match c {
+                        Component::Normal(p) => Some(LookUpArgs {
+                            object_name: p.to_str().unwrap().into(),
+                        }),
+                        _ => None,
                     })),
                 ),
                 GetAttrArgs {
@@ -478,6 +512,30 @@ impl Client {
                 },
             ),
         )?)
+    }
+
+    pub fn look_up(
+        &mut self,
+        transport: &mut impl Transport,
+        path: impl AsRef<Path>,
+    ) -> Result<FileHandle> {
+        Ok(self
+            .do_compound(
+                transport,
+                ReturnSecond(
+                    (
+                        PutRootFh,
+                        Vec::from_iter(path.as_ref().components().filter_map(|c| match c {
+                            Component::Normal(p) => Some(LookUpArgs {
+                                object_name: p.to_str().unwrap().into(),
+                            }),
+                            _ => None,
+                        })),
+                    ),
+                    GetFh,
+                ),
+            )?
+            .object)
     }
 
     pub fn read(
@@ -508,7 +566,12 @@ impl Client {
     ) -> Result<()> {
         let mut offset = 0;
         loop {
-            let read_res = self.read(transport, handle.clone(), offset, 1024 * 1024)?;
+            let read_res = self.read(
+                transport,
+                handle.clone(),
+                offset,
+                self.max_read.try_into().unwrap(),
+            )?;
             offset += read_res.data.len() as u64;
             sink.write_all(&read_res.data)?;
             if read_res.eof {
@@ -516,5 +579,84 @@ impl Client {
             }
         }
         Ok(())
+    }
+
+    pub fn write(
+        &mut self,
+        transport: &mut impl Transport,
+        handle: FileHandle,
+        offset: u64,
+        data: Vec<u8>,
+    ) -> Result<WriteRes> {
+        Ok(self.do_compound(
+            transport,
+            ReturnSecond(
+                PutFhArgs { object: handle },
+                WriteArgs {
+                    state_id: StateId::anonymous(),
+                    offset,
+                    stable: StableHow::FileSync,
+                    data,
+                },
+            ),
+        )?)
+    }
+
+    pub fn write_all(
+        &mut self,
+        transport: &mut impl Transport,
+        handle: FileHandle,
+        mut source: impl io::Read,
+    ) -> Result<()> {
+        let mut offset = 0;
+        loop {
+            let mut buf = vec![0; self.max_write as usize];
+            let amount_read = source.read(&mut buf[..])?;
+            if amount_read == 0 {
+                break;
+            }
+
+            buf.resize(amount_read, 0);
+
+            while buf.len() > 0 {
+                let write_res = self.write(transport, handle.clone(), offset, buf.clone())?;
+                buf = buf[write_res.count as usize..].to_owned();
+            }
+
+            offset += amount_read as u64;
+        }
+        Ok(())
+    }
+
+    pub fn create_file(
+        &mut self,
+        transport: &mut impl Transport,
+        parent: FileHandle,
+        name: &str,
+    ) -> Result<FileHandle> {
+        Ok(self
+            .do_compound(
+                transport,
+                ReturnSecond(
+                    (
+                        PutFhArgs { object: parent },
+                        OpenArgs {
+                            sequence_id: SequenceId(0),
+                            share_access: ShareAccess::WRITE,
+                            share_deny: ShareDeny::NONE,
+                            owner: StateOwner {
+                                client_id: self.client_id,
+                                opaque: self.client_owner.owner_id.clone(),
+                            },
+                            open_how: OpenFlag::OpenCreate(CreateHow::Exclusive {
+                                create_verifier: Verifier(0),
+                            }),
+                            claim: OpenClaim::Null { file: name.into() },
+                        },
+                    ),
+                    GetFh,
+                ),
+            )?
+            .object)
     }
 }
