@@ -3,7 +3,7 @@ name = "vm_test_fixture"
 version = "0.1.0"
 edition = "2021"
 description = "Runs a VM for use in tests"
-license = "../LICENSE"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

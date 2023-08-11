@@ -4,7 +4,7 @@ version = "0.1.0"
 authors = ["Remi Bernotavicius <remi@.abort.cc>"]
 edition = "2021"
 description = "NFSv4.1 CLI client and tools"
-license = "../LICENSE"
+license = "MIT"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }

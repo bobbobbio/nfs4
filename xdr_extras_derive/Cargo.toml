@@ -3,7 +3,7 @@ name = "xdr_extras_derive"
 version = "0.1.0"
 edition = "2021"
 description = "derive macro for xdr_extras crate"
-license = "../LICENSE"
+license = "MIT"
 
 [lib]
 proc-macro = true

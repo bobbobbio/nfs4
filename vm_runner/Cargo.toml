@@ -3,7 +3,7 @@ name = "vm_runner"
 version = "0.1.0"
 edition = "2021"
 description = "Meant to be used by vm_test_fixture crate to running VMs"
-license = "../LICENSE"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

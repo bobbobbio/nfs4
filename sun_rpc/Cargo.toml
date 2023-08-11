@@ -3,7 +3,7 @@ name = "sun_rpc"
 version = "0.1.0"
 edition = "2021"
 description = "Protocol types for Sun RPC"
-license = "../LICENSE"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
