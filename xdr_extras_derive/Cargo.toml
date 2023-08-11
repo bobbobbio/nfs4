@@ -1,6 +1,6 @@
 [package]
 name = "xdr_extras_derive"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "derive macro for xdr_extras crate"
 license = "MIT"
@@ -18,4 +18,4 @@ quote = "^1"
 [dev-dependencies]
 serde = "^1"
 serde-xdr = "^0.6"
-# xdr_extras = { version = "^0.1", path = "../xdr_extras" }
+xdr_extras = { version = "^0.1", path = "../xdr_extras" }
