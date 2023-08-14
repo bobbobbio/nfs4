@@ -31,9 +31,12 @@ fn print_listing(entries: &[nfs4::DirectoryEntry]) {
         let num_links: &u32 = e.attrs.get_as(FileAttributeId::NumLinks).unwrap();
         let owner: &String = e.attrs.get_as(FileAttributeId::Owner).unwrap();
         let size: &u64 = e.attrs.get_as(FileAttributeId::Size).unwrap();
-        let modify: &nfs4::Time = e.attrs.get_as(FileAttributeId::TimeModify).unwrap();
 
-        println!("{mode:?} {num_links:3} {owner:5} {size:10} {modify:10?} {name}");
+        let modify_raw: &nfs4::Time = e.attrs.get_as(FileAttributeId::TimeModify).unwrap();
+        let modify = modify_raw.to_date_time().unwrap();
+        let modify_str = modify.to_string();
+
+        println!("{mode:?} {num_links:3} {owner:5} {size:10} {modify_str:29} {name}");
     }
 }
 

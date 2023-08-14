@@ -336,6 +336,13 @@ pub struct Time {
     pub nseconds: u32,
 }
 
+#[cfg(feature = "chrono")]
+impl Time {
+    pub fn to_date_time(&self) -> Option<chrono::NaiveDateTime> {
+        chrono::NaiveDateTime::from_timestamp_opt(self.seconds, self.nseconds)
+    }
+}
+
 #[derive(
     SerializeWithDiscriminant, DeserializeWithDiscriminant, PartialEq, Eq, Copy, Clone, Debug,
 )]
