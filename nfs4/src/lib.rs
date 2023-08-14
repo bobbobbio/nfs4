@@ -1205,8 +1205,14 @@ pub struct ReadArgs {
     pub count: u32,
 }
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
+#[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct Cookie(pub u64);
+
+impl Cookie {
+    pub const fn initial() -> Self {
+        Self(0)
+    }
+}
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct Verifier(pub u64);

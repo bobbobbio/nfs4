@@ -10,6 +10,7 @@ use std::path::PathBuf;
 #[derive(Subcommand)]
 enum Command {
     GetAttr { path: PathBuf },
+    ReadDir { path: PathBuf },
     Download { remote: PathBuf, local: PathBuf },
     Upload { local: PathBuf, remote: PathBuf },
 }
@@ -23,6 +24,19 @@ struct Options {
     command: Command,
 }
 
+fn print_listing(entries: &[nfs4::DirectoryEntry]) {
+    for e in entries {
+        let name = &e.name;
+        let mode: &nfs4::Mode = e.attrs.get_as(FileAttributeId::Mode).unwrap();
+        let num_links: &u32 = e.attrs.get_as(FileAttributeId::NumLinks).unwrap();
+        let owner: &String = e.attrs.get_as(FileAttributeId::Owner).unwrap();
+        let size: &u64 = e.attrs.get_as(FileAttributeId::Size).unwrap();
+        let modify: &nfs4::Time = e.attrs.get_as(FileAttributeId::TimeModify).unwrap();
+
+        println!("{mode:?} {num_links:3} {owner:5} {size:10} {modify:10?} {name}");
+    }
+}
+
 fn main() -> Result<()> {
     let opts = Options::parse();
 
@@ -32,6 +46,11 @@ fn main() -> Result<()> {
         Command::GetAttr { path } => {
             let reply = client.get_attr(&mut transport, &path)?;
             println!("{reply:#?}");
+        }
+        Command::ReadDir { path } => {
+            let handle = client.look_up(&mut transport, &path)?;
+            let reply = client.read_dir(&mut transport, handle)?;
+            print_listing(&reply);
         }
         Command::Download { remote, local } => {
             let local_file = if local.to_string_lossy().ends_with('/') {

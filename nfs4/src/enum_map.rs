@@ -19,6 +19,12 @@ where
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct EnumSet<K>(BTreeSet<K>);
 
+impl<K> Default for EnumSet<K> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+
 impl<K> IntoIterator for EnumSet<K> {
     type Item = K;
     type IntoIter = std::collections::btree_set::IntoIter<K>;
@@ -42,6 +48,12 @@ where
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct EnumMap<K, V>(BTreeMap<K, V>);
+
+impl<K, V> Default for EnumMap<K, V> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
 
 impl<K, V> FromIterator<V> for EnumMap<K, V>
 where

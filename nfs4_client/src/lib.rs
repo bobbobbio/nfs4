@@ -372,6 +372,7 @@ pub struct Client {
     client_owner: ClientOwner,
     max_read: u64,
     max_write: u64,
+    supported_attrs: EnumSet<FileAttributeId>,
 }
 
 impl Client {
@@ -427,22 +428,30 @@ impl Client {
             client_owner,
             max_read: 0,
             max_write: 0,
+            supported_attrs: Default::default(),
         };
 
-        let root_attrs = client
+        let mut root_attrs = client
             .do_compound(
                 transport,
                 ReturnSecond(
                     (ReclaimCompleteArgs { one_fs: false }, PutRootFh),
                     GetAttrArgs {
-                        attr_request: [FileAttributeId::MaxRead, FileAttributeId::MaxWrite]
-                            .into_iter()
-                            .collect(),
+                        attr_request: [
+                            FileAttributeId::SupportedAttrs,
+                            FileAttributeId::MaxRead,
+                            FileAttributeId::MaxWrite,
+                        ]
+                        .into_iter()
+                        .collect(),
                     },
                 ),
             )?
             .object_attributes;
 
+        client.supported_attrs = root_attrs
+            .remove_as(FileAttributeId::SupportedAttrs)
+            .unwrap();
         client.max_read = *root_attrs.get_as(FileAttributeId::MaxRead).unwrap();
         client.max_write = *root_attrs.get_as(FileAttributeId::MaxWrite).unwrap();
 
@@ -477,20 +486,7 @@ impl Client {
         transport: &mut impl Transport,
         path: impl AsRef<Path>,
     ) -> Result<GetAttrRes> {
-        let mut get_attr_res = self.do_compound(
-            transport,
-            ReturnSecond(
-                PutRootFh,
-                GetAttrArgs {
-                    attr_request: [FileAttributeId::SupportedAttrs].into_iter().collect(),
-                },
-            ),
-        )?;
-
-        let mut supported_attrs: EnumSet<FileAttributeId> = get_attr_res
-            .object_attributes
-            .remove_as(FileAttributeId::SupportedAttrs)
-            .unwrap();
+        let mut supported_attrs = self.supported_attrs.clone();
 
         supported_attrs.remove(FileAttributeId::TimeAccessSet);
         supported_attrs.remove(FileAttributeId::TimeModifySet);
@@ -658,6 +654,45 @@ impl Client {
                 ),
             )?
             .object)
+    }
+
+    pub fn read_dir(
+        &mut self,
+        transport: &mut impl Transport,
+        handle: FileHandle,
+    ) -> Result<Vec<DirectoryEntry>> {
+        let mut supported_attrs = self.supported_attrs.clone();
+
+        supported_attrs.remove(FileAttributeId::TimeAccessSet);
+        supported_attrs.remove(FileAttributeId::TimeModifySet);
+
+        let mut entries = vec![];
+
+        let mut cookie = Cookie::initial();
+        loop {
+            let res = self.do_compound(
+                transport,
+                ReturnSecond(
+                    PutFhArgs {
+                        object: handle.clone(),
+                    },
+                    ReadDirArgs {
+                        cookie,
+                        cookie_verifier: Verifier(0),
+                        directory_count: 1000,
+                        max_count: 1000,
+                        attr_request: supported_attrs.clone(),
+                    },
+                ),
+            )?;
+
+            entries.extend(res.reply.entries);
+
+            if res.reply.eof {
+                break Ok(entries);
+            }
+            cookie = entries.last().unwrap().cookie;
+        }
     }
 }
 
