@@ -698,6 +698,8 @@ impl Client {
 
 #[test]
 fn upload_download() {
+    use std::collections::HashSet;
+
     vm_test_fixture::fixture(&[NFS_PORT], |m| {
         let port = m
             .forwarded_ports()
@@ -709,7 +711,7 @@ fn upload_download() {
 
         let parent = client.look_up(&mut transport, "/files").unwrap();
         let handle = client
-            .create_file(&mut transport, parent, "a_file")
+            .create_file(&mut transport, parent.clone(), "a_file")
             .unwrap();
 
         let test_contents: Vec<u8> = (0..100_000).map(|v| (v % 255) as u8).collect();
@@ -731,5 +733,20 @@ fn upload_download() {
                 .unwrap(),
             read_data.len() as u64
         );
+
+        let mut expected = HashSet::new();
+        expected.insert("a_file".into());
+
+        for i in 0..100 {
+            let name = format!("a_file{i}");
+            client
+                .create_file(&mut transport, parent.clone(), &name)
+                .unwrap();
+            expected.insert(name);
+        }
+
+        let entries = client.read_dir(&mut transport, parent).unwrap();
+        let actual: HashSet<String> = entries.into_iter().map(|e| e.name).collect();
+        assert_eq!(actual, expected);
     });
 }
