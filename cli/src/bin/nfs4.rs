@@ -1,5 +1,6 @@
 // Copyright 2023 Remi Bernotavicius
 
+use chrono::{offset::TimeZone as _, Local};
 use clap::{Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
 use nfs4::FileAttributeId;
@@ -34,9 +35,9 @@ fn print_listing(entries: &[nfs4::DirectoryEntry]) {
 
         let modify_raw: &nfs4::Time = e.attrs.get_as(FileAttributeId::TimeModify).unwrap();
         let modify = modify_raw.to_date_time().unwrap();
-        let modify_str = modify.to_string();
+        let modify_str = Local.from_local_datetime(&modify).unwrap().to_rfc2822();
 
-        println!("{mode:?} {num_links:3} {owner:5} {size:10} {modify_str:29} {name}");
+        println!("{mode:?} {num_links:3} {owner:5} {size:10} {modify_str:31} {name}");
     }
 }
 

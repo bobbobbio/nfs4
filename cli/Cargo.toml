@@ -8,6 +8,7 @@ license = "MIT"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+chrono = "^0.4"
 indicatif = "^0.17"
 nfs4_client = { version = "^0.1", path = "../nfs4_client" }
 nfs4 = { version = "^0.1", path = "../nfs4" }
