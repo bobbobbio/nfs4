@@ -660,3 +660,41 @@ impl Client {
             .object)
     }
 }
+
+#[test]
+fn upload_download() {
+    vm_test_fixture::fixture(&[NFS_PORT], |m| {
+        let port = m
+            .forwarded_ports()
+            .iter()
+            .find(|p| p.guest == NFS_PORT)
+            .unwrap();
+        let mut transport = std::net::TcpStream::connect(("127.0.0.1", port.host)).unwrap();
+        let mut client = Client::new(&mut transport).unwrap();
+
+        let parent = client.look_up(&mut transport, "/files").unwrap();
+        let handle = client
+            .create_file(&mut transport, parent, "a_file")
+            .unwrap();
+
+        let test_contents: Vec<u8> = (0..100_000).map(|v| (v % 255) as u8).collect();
+        client
+            .write_all(&mut transport, handle.clone(), &test_contents[..])
+            .unwrap();
+
+        let mut read_data = vec![];
+        client
+            .read_all(&mut transport, handle, &mut read_data)
+            .unwrap();
+        assert_eq!(read_data, test_contents);
+
+        let reply = client.get_attr(&mut transport, "/files/a_file").unwrap();
+        assert_eq!(
+            *reply
+                .object_attributes
+                .get_as::<u64>(FileAttributeId::Size)
+                .unwrap(),
+            read_data.len() as u64
+        );
+    });
+}

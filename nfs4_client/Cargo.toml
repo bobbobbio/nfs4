@@ -14,3 +14,6 @@ rand = "^0.4"
 paste = "^1"
 serde-xdr = "^0.6"
 sun_rpc_client = { version = "^0.1", path = "../sun_rpc_client" }
+
+[dev-dependencies]
+vm_test_fixture = { version = "^0.1", path = "../vm_test_fixture" }

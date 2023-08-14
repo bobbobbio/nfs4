@@ -85,7 +85,7 @@ pub struct Machine {
 }
 
 impl Machine {
-    fn new(cd_rom_image: Option<&str>, overlay: bool, boot_img: &str) -> Self {
+    fn new(cd_rom_image: Option<&str>, overlay: bool, boot_img: &str, ports: &[u16]) -> Self {
         let work_dir = tempdir::TempDir::new("vm_runner").unwrap();
 
         let hda = if overlay {
@@ -110,6 +110,11 @@ impl Machine {
         let monitor_listener = TcpListener::bind("127.0.0.1:0").unwrap();
         let monitor_addr = monitor_listener.local_addr().unwrap();
 
+        let mut forwards = String::new();
+        for p in ports {
+            forwards += &format!("hostfwd=tcp::0-:{p},");
+        }
+
         let mut args = vec![
             "qemu-system-x86_64".into(),
             "-enable-kvm".into(),
@@ -118,7 +123,7 @@ impl Machine {
             "-smp 12".into(),
             "-nographic".into(),
             format!("-qmp tcp:{monitor_addr}"),
-            "-netdev user,hostfwd=tcp::0-:111,id=network0".into(),
+            format!("-netdev user,{forwards}id=network0"),
             "-device e1000,netdev=network0".into(),
             hda,
         ];
@@ -303,11 +308,25 @@ fn install_alpine(m: &mut Machine) {
 }
 
 fn install_packages(m: &mut Machine) {
+    m.run_command("mkdir --mode=0777 /files");
+
     m.run_command("apk add nfs-utils");
     m.run_command("rc-update add nfs");
     m.run_command("rc-service nfs start");
 
+    m.proc.send_line("tee /etc/exports <<EOF").unwrap();
+    m.proc
+        .send_line("/files *(rw,sync,no_subtree_check,no_root_squash,insecure)")
+        .unwrap();
+    m.proc.send_line("EOF").unwrap();
+
     log::info!("NFS installed");
+
+    m.proc.send_line("tee /etc/ssh/sshd_config <<EOF").unwrap();
+    m.proc.send_line("PermitRootLogin yes").unwrap();
+    m.proc.send_line("EOF").unwrap();
+
+    log::info!("SSH set-up");
 }
 
 pub fn create_image(boot_image: impl AsRef<Path>) {
@@ -318,13 +337,18 @@ pub fn create_image(boot_image: impl AsRef<Path>) {
 
     create_disk(boot_image);
 
-    let mut m = Machine::new(Some(&install_image), false /* overlay */, boot_image);
+    let mut m = Machine::new(
+        Some(&install_image),
+        false, /* overlay */
+        boot_image,
+        &[][..],
+    );
     log::info!("booting VM");
 
     install_alpine(&mut m);
     drop(m);
 
-    let mut m = Machine::new(None, false /* overlay */, boot_image);
+    let mut m = Machine::new(None, false /* overlay */, boot_image, &[][..]);
     m.log_in();
 
     install_packages(&mut m);
@@ -332,9 +356,9 @@ pub fn create_image(boot_image: impl AsRef<Path>) {
     std::fs::remove_file(install_image).unwrap();
 }
 
-pub fn run_vm(boot_image: impl AsRef<Path>, body: impl FnOnce(&Machine)) {
+pub fn run_vm(boot_image: impl AsRef<Path>, ports: &[u16], body: impl FnOnce(&Machine)) {
     let boot_image = boot_image.as_ref().to_str().unwrap();
-    let mut m = Machine::new(None, true /* overlay */, boot_image);
+    let mut m = Machine::new(None, true /* overlay */, boot_image, ports);
     m.log_in();
     body(&m)
 }

@@ -2,7 +2,7 @@
 
 use derive_more::From;
 use serde::{de::DeserializeOwned, Serialize};
-use std::io;
+use std::{fmt, io};
 use sun_rpc::{
     AcceptedReplyBody, AuthSysParameters, CallBody, Gid, Message, MessageBody, OpaqueAuth,
     ReplyBody, Uid, Xid,
@@ -20,7 +20,8 @@ pub enum Error {
     ProcedureUnavailable,
     GarbageArguments,
     SystemError,
-    UnexpectedReply,
+    #[from(ignore)]
+    UnexpectedReply(String),
 }
 
 pub trait Transport: io::Read + io::Write {}
@@ -81,7 +82,7 @@ impl RpcClient {
         Ok(())
     }
 
-    pub fn receive_reply<T: DeserializeOwned>(
+    pub fn receive_reply<T: DeserializeOwned + fmt::Debug>(
         &mut self,
         mut transport: &mut impl Transport,
     ) -> Result<T> {
@@ -104,14 +105,14 @@ impl RpcClient {
                 AcceptedReplyBody::SystemError => Err(Error::SystemError),
             }
         } else {
-            Err(Error::UnexpectedReply)
+            Err(Error::UnexpectedReply(format!("{reply:?}")))
         }
     }
 }
 
 #[test]
 fn ping() {
-    vm_test_fixture::fixture(|m| {
+    vm_test_fixture::fixture(&[PORT_MAPPER_PORT], |m| {
         let port = m
             .forwarded_ports()
             .iter()
