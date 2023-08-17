@@ -70,6 +70,17 @@ where
     }
 }
 
+impl<K, V> EnumMap<K, V>
+where
+    K: Ord,
+    V: ToId<K>,
+{
+    pub fn insert(&mut self, value: V) {
+        let key = value.to_id();
+        self.0.insert(key, value);
+    }
+}
+
 impl<K> EnumSet<K>
 where
     K: Into<u32> + Copy,

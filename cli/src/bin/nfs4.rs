@@ -3,17 +3,50 @@
 use chrono::{offset::TimeZone as _, Local};
 use clap::{Parser, Subcommand};
 use indicatif::{ProgressBar, ProgressStyle};
-use nfs4::FileAttributeId;
+use nfs4::{FileAttribute, FileAttributeId, FileAttributes};
 use nfs4_client::Result;
 use std::net::TcpStream;
 use std::path::PathBuf;
 
+fn file_attrs(s: &str) -> std::result::Result<FileAttributes, String> {
+    let mut attrs = FileAttributes::default();
+
+    for e in s.split(",") {
+        let i = e.find("=").ok_or(String::from("Missing `=`"))?;
+        let key = &e[..i];
+        let value = &e[(i + 1)..];
+        attrs.insert(match key {
+            "size" => FileAttribute::Size(value.parse::<u64>().map_err(|e| e.to_string())?),
+            "owner" => FileAttribute::Owner(value.into()),
+            "owner_group" => FileAttribute::OwnerGroup(value.into()),
+            other => return Err(format!("unsupported attribute `{other}`")),
+        });
+    }
+
+    Ok(attrs)
+}
+
 #[derive(Subcommand)]
 enum Command {
-    GetAttr { path: PathBuf },
-    ReadDir { path: PathBuf },
-    Download { remote: PathBuf, local: PathBuf },
-    Upload { local: PathBuf, remote: PathBuf },
+    GetAttr {
+        path: PathBuf,
+    },
+    SetAttr {
+        path: PathBuf,
+        #[arg(value_parser = file_attrs)]
+        attrs: FileAttributes,
+    },
+    ReadDir {
+        path: PathBuf,
+    },
+    Download {
+        remote: PathBuf,
+        local: PathBuf,
+    },
+    Upload {
+        local: PathBuf,
+        remote: PathBuf,
+    },
 }
 
 #[derive(Parser)]
@@ -73,6 +106,10 @@ fn main() -> Result<()> {
             );
             let file = std::fs::File::create(local_file)?;
             client.read_all(&mut transport, handle, progress.wrap_write(file))?;
+        }
+        Command::SetAttr { path, attrs } => {
+            let handle = client.look_up(&mut transport, &path)?;
+            client.set_attr(&mut transport, handle, attrs)?;
         }
         Command::Upload { local, remote } => {
             let (parent_dir, name) = if remote.to_string_lossy().ends_with('/') {

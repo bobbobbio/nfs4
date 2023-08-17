@@ -694,6 +694,27 @@ impl Client {
             cookie = entries.last().unwrap().cookie;
         }
     }
+
+    pub fn set_attr(
+        &mut self,
+        transport: &mut impl Transport,
+        handle: FileHandle,
+        attrs: FileAttributes,
+    ) -> Result<()> {
+        self.do_compound(
+            transport,
+            ReturnSecond(
+                PutFhArgs {
+                    object: handle.clone(),
+                },
+                SetAttrArgs {
+                    state_id: StateId::anonymous(),
+                    object_attributes: attrs,
+                },
+            ),
+        )?;
+        Ok(())
+    }
 }
 
 #[test]
@@ -721,7 +742,7 @@ fn upload_download() {
 
         let mut read_data = vec![];
         client
-            .read_all(&mut transport, handle, &mut read_data)
+            .read_all(&mut transport, handle.clone(), &mut read_data)
             .unwrap();
         assert_eq!(read_data, test_contents);
 
@@ -732,6 +753,23 @@ fn upload_download() {
                 .get_as::<u64>(FileAttributeId::Size)
                 .unwrap(),
             read_data.len() as u64
+        );
+
+        client
+            .set_attr(
+                &mut transport,
+                handle,
+                [FileAttribute::Size(100)].into_iter().collect(),
+            )
+            .unwrap();
+
+        let reply = client.get_attr(&mut transport, "/files/a_file").unwrap();
+        assert_eq!(
+            *reply
+                .object_attributes
+                .get_as::<u64>(FileAttributeId::Size)
+                .unwrap(),
+            100
         );
 
         let mut expected = HashSet::new();
