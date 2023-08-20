@@ -39,6 +39,9 @@ enum Command {
     ReadDir {
         path: PathBuf,
     },
+    Remove {
+        path: PathBuf,
+    },
     Download {
         remote: PathBuf,
         local: PathBuf,
@@ -88,6 +91,11 @@ fn main() -> Result<()> {
             let handle = client.look_up(&mut transport, &path)?;
             let reply = client.read_dir(&mut transport, handle)?;
             print_listing(&reply);
+        }
+        Command::Remove { path } => {
+            let (parent_dir, name) = (path.parent().unwrap(), path.file_name().unwrap());
+            let parent = client.look_up(&mut transport, parent_dir)?;
+            client.remove(&mut transport, parent, name.to_str().unwrap())?;
         }
         Command::Download { remote, local } => {
             let local_file = if local.to_string_lossy().ends_with('/') {

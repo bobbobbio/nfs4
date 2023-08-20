@@ -704,9 +704,7 @@ impl Client {
         self.do_compound(
             transport,
             ReturnSecond(
-                PutFhArgs {
-                    object: handle.clone(),
-                },
+                PutFhArgs { object: handle },
                 SetAttrArgs {
                     state_id: StateId::anonymous(),
                     object_attributes: attrs,
@@ -714,6 +712,25 @@ impl Client {
             ),
         )?;
         Ok(())
+    }
+
+    pub fn remove(
+        &mut self,
+        transport: &mut impl Transport,
+        handle: FileHandle,
+        entry_name: &str,
+    ) -> Result<ChangeInfo> {
+        Ok(self
+            .do_compound(
+                transport,
+                ReturnSecond(
+                    PutFhArgs { object: handle },
+                    RemoveArgs {
+                        target: entry_name.into(),
+                    },
+                ),
+            )?
+            .change_info)
     }
 }
 
@@ -783,8 +800,13 @@ fn upload_download() {
             expected.insert(name);
         }
 
-        let entries = client.read_dir(&mut transport, parent).unwrap();
+        let entries = client.read_dir(&mut transport, parent.clone()).unwrap();
         let actual: HashSet<String> = entries.into_iter().map(|e| e.name).collect();
         assert_eq!(actual, expected);
+
+        client.remove(&mut transport, parent, "a_file0").unwrap();
+        client
+            .look_up(&mut transport, "/files/a_file0")
+            .unwrap_err();
     });
 }
