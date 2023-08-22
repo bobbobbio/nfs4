@@ -168,6 +168,10 @@ impl Machine {
     pub fn run_command(&mut self, cmd: &str) {
         self.proc.exp_string("alpine:~# ").unwrap();
         self.proc.send_line(cmd).unwrap();
+
+        // force ourselves to wait for the last command to finish
+        self.proc.exp_string("alpine:~# ").unwrap();
+        self.proc.send_line("echo done").unwrap();
     }
 
     pub fn forwarded_ports(&self) -> &[ForwardedPort] {

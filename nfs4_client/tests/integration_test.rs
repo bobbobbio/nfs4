@@ -49,7 +49,6 @@ impl<'machine> Fixture<'machine> {
             log::info!("running test {}:Fixture::{}", file!(), test_name);
             test(self);
             self.machine.run_command("rm -rf /files/*");
-            self.machine.run_command("ls /files/"); // XXX its not waiting lol
         }
     }
 
