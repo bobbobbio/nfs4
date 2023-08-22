@@ -17,3 +17,4 @@ sun_rpc_client = { version = "^0.1", path = "../sun_rpc_client" }
 
 [dev-dependencies]
 vm_test_fixture = { version = "^0.1", path = "../vm_test_fixture" }
+vm_runner = { version = "^0.1", path = "../vm_runner" }

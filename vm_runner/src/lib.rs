@@ -163,7 +163,7 @@ impl Machine {
         log::info!("logged in");
     }
 
-    fn run_command(&mut self, cmd: &str) {
+    pub fn run_command(&mut self, cmd: &str) {
         self.proc.exp_string("alpine:~# ").unwrap();
         self.proc.send_line(cmd).unwrap();
     }
@@ -356,9 +356,9 @@ pub fn create_image(boot_image: impl AsRef<Path>) {
     std::fs::remove_file(install_image).unwrap();
 }
 
-pub fn run_vm(boot_image: impl AsRef<Path>, ports: &[u16], body: impl FnOnce(&Machine)) {
+pub fn run_vm(boot_image: impl AsRef<Path>, ports: &[u16], body: impl FnOnce(&mut Machine)) {
     let boot_image = boot_image.as_ref().to_str().unwrap();
     let mut m = Machine::new(None, true /* overlay */, boot_image, ports);
     m.log_in();
-    body(&m)
+    body(&mut m)
 }
