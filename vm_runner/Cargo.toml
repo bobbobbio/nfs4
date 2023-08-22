@@ -15,3 +15,6 @@ qapi = { version = "^0.13", features = ["qapi-qmp"] }
 rexpect = "^0.5"
 simple-logging = "^2"
 tempdir = "^0.3"
+
+[build-dependencies]
+sha256 = "^1.0.3"

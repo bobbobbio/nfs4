@@ -5,6 +5,8 @@ use std::net::{TcpListener, TcpStream};
 use std::path::Path;
 use std::process::Command;
 
+pub const VM_HASH: &'static str = env!("VM_HASH");
+
 struct Qmp(TcpStream);
 
 impl Qmp {
