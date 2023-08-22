@@ -7,6 +7,12 @@ use std::collections::BTreeSet;
 use std::net::TcpStream;
 use std::path::Path;
 
+macro_rules! test {
+    ($test_name:ident) => {
+        (Self::$test_name as fn(&mut Self), stringify!($test_name))
+    };
+}
+
 struct Fixture<'machine> {
     machine: &'machine mut vm_runner::Machine,
     client: Client,
@@ -32,14 +38,15 @@ impl<'machine> Fixture<'machine> {
 
     fn run(&mut self) {
         let tests = [
-            Self::create_file_test,
-            Self::read_write_test,
-            Self::set_attr_test,
-            Self::read_dir_test,
-            Self::remove_test,
+            test!(create_file_test),
+            test!(read_write_test),
+            test!(set_attr_test),
+            test!(read_dir_test),
+            test!(remove_test),
         ];
 
-        for test in tests {
+        for (test, test_name) in tests {
+            log::info!("running test {}:Fixture::{}", file!(), test_name);
             test(self);
             self.machine.run_command("rm -rf /files/*");
             self.machine.run_command("ls /files/"); // XXX its not waiting lol
@@ -83,6 +90,13 @@ impl<'machine> Fixture<'machine> {
             .look_up(&mut self.transport, "/files/a_file")
             .unwrap();
     }
+
+    //  _            _
+    // | |_ ___  ___| |_ ___
+    // | __/ _ \/ __| __/ __|
+    // | ||  __/\__ \ |_\__ \
+    //  \__\___||___/\__|___/
+    //
 
     fn read_write_test(&mut self) {
         let handle = self.create_file("/files/a_file");
