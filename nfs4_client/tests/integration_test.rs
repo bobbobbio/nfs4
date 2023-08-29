@@ -38,6 +38,7 @@ impl<'machine> Fixture<'machine> {
             test!(set_attr_test),
             test!(read_dir_test),
             test!(remove_test),
+            test!(rename_test),
         ];
 
         for (test, test_name) in tests {
@@ -139,6 +140,17 @@ impl<'machine> Fixture<'machine> {
 
         self.client.remove(parent, "a_file").unwrap();
         self.client.look_up("/files/a_file").unwrap_err();
+    }
+
+    fn rename_test(&mut self) {
+        self.create_file("/files/a_file");
+        let parent = self.client.look_up("/files").unwrap();
+        self.client
+            .rename(parent.clone(), parent, "a_file", "b_file")
+            .unwrap();
+
+        self.client.look_up("/files/a_file").unwrap_err();
+        self.client.look_up("/files/b_file").unwrap();
     }
 }
 

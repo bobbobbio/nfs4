@@ -635,4 +635,24 @@ impl<TransportT: Transport> Client<TransportT> {
             ))?
             .change_info)
     }
+
+    pub fn rename(
+        &mut self,
+        src_dir: FileHandle,
+        target_dir: FileHandle,
+        src_entry: &str,
+        target_entry: &str,
+    ) -> Result<RenameRes> {
+        self.do_compound(ReturnSecond(
+            (
+                PutFhArgs { object: src_dir },
+                SaveFh,
+                PutFhArgs { object: target_dir },
+            ),
+            RenameArgs {
+                old_name: src_entry.to_owned(),
+                new_name: target_entry.to_owned(),
+            },
+        ))
+    }
 }
