@@ -80,22 +80,22 @@ fn print_listing(entries: &[nfs4::DirectoryEntry]) {
 fn main() -> Result<()> {
     let opts = Options::parse();
 
-    let mut transport = TcpStream::connect((opts.host, opts.port))?;
-    let mut client = nfs4_client::Client::new(&mut transport)?;
+    let transport = TcpStream::connect((opts.host, opts.port))?;
+    let mut client = nfs4_client::Client::new(transport)?;
     match opts.command {
         Command::GetAttr { path } => {
-            let reply = client.get_attr(&mut transport, &path)?;
+            let reply = client.get_attr(&path)?;
             println!("{reply:#?}");
         }
         Command::ReadDir { path } => {
-            let handle = client.look_up(&mut transport, &path)?;
-            let reply = client.read_dir(&mut transport, handle)?;
+            let handle = client.look_up(&path)?;
+            let reply = client.read_dir(handle)?;
             print_listing(&reply);
         }
         Command::Remove { path } => {
             let (parent_dir, name) = (path.parent().unwrap(), path.file_name().unwrap());
-            let parent = client.look_up(&mut transport, parent_dir)?;
-            client.remove(&mut transport, parent, name.to_str().unwrap())?;
+            let parent = client.look_up(parent_dir)?;
+            client.remove(parent, name.to_str().unwrap())?;
         }
         Command::Download { remote, local } => {
             let local_file = if local.to_string_lossy().ends_with('/') {
@@ -104,7 +104,7 @@ fn main() -> Result<()> {
                 local
             };
 
-            let mut remote_attrs = client.get_attr(&mut transport, &remote)?.object_attributes;
+            let mut remote_attrs = client.get_attr(&remote)?.object_attributes;
             let size = remote_attrs.remove_as(FileAttributeId::Size).unwrap();
             let handle = remote_attrs.remove_as(FileAttributeId::FileHandle).unwrap();
 
@@ -113,11 +113,11 @@ fn main() -> Result<()> {
                     .unwrap(),
             );
             let file = std::fs::File::create(local_file)?;
-            client.read_all(&mut transport, handle, progress.wrap_write(file))?;
+            client.read_all(handle, progress.wrap_write(file))?;
         }
         Command::SetAttr { path, attrs } => {
-            let handle = client.look_up(&mut transport, &path)?;
-            client.set_attr(&mut transport, handle, attrs)?;
+            let handle = client.look_up(&path)?;
+            client.set_attr(handle, attrs)?;
         }
         Command::Upload { local, remote } => {
             let (parent_dir, name) = if remote.to_string_lossy().ends_with('/') {
@@ -126,15 +126,15 @@ fn main() -> Result<()> {
                 (remote.parent().unwrap(), remote.file_name().unwrap())
             };
 
-            let parent = client.look_up(&mut transport, parent_dir)?;
-            let handle = client.create_file(&mut transport, parent, name.to_str().unwrap())?;
+            let parent = client.look_up(parent_dir)?;
+            let handle = client.create_file(parent, name.to_str().unwrap())?;
 
             let file = std::fs::File::open(local)?;
             let progress = ProgressBar::new(file.metadata()?.len()).with_style(
                 ProgressStyle::with_template("{wide_bar} {percent}% {binary_bytes_per_sec}")
                     .unwrap(),
             );
-            client.write_all(&mut transport, handle, progress.wrap_read(file))?;
+            client.write_all(handle, progress.wrap_read(file))?;
         }
     }
 
