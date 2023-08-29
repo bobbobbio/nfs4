@@ -84,7 +84,8 @@ fn main() -> Result<()> {
     let mut client = nfs4_client::Client::new(transport)?;
     match opts.command {
         Command::GetAttr { path } => {
-            let reply = client.get_attr(&path)?;
+            let handle = client.look_up(&path)?;
+            let reply = client.get_attr(handle)?;
             println!("{reply:#?}");
         }
         Command::ReadDir { path } => {
@@ -104,9 +105,9 @@ fn main() -> Result<()> {
                 local
             };
 
-            let mut remote_attrs = client.get_attr(&remote)?.object_attributes;
+            let handle = client.look_up(&remote)?;
+            let mut remote_attrs = client.get_attr(handle.clone())?.object_attributes;
             let size = remote_attrs.remove_as(FileAttributeId::Size).unwrap();
-            let handle = remote_attrs.remove_as(FileAttributeId::FileHandle).unwrap();
 
             let progress = ProgressBar::new(size).with_style(
                 ProgressStyle::with_template("{wide_bar} {percent}% {binary_bytes_per_sec}")

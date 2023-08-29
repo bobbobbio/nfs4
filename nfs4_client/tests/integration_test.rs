@@ -56,7 +56,8 @@ impl<'machine> Fixture<'machine> {
     //              |_|
 
     fn get_file_size(&mut self, path: &str) -> u64 {
-        let reply = self.client.get_attr(path).unwrap();
+        let handle = self.client.look_up(path).unwrap();
+        let reply = self.client.get_attr(handle).unwrap();
         *reply
             .object_attributes
             .get_as::<u64>(FileAttributeId::Size)
@@ -105,10 +106,13 @@ impl<'machine> Fixture<'machine> {
         let handle = self.create_file("/files/a_file");
 
         self.client
-            .set_attr(handle, [FileAttribute::Size(100)].into_iter().collect())
+            .set_attr(
+                handle.clone(),
+                [FileAttribute::Size(100)].into_iter().collect(),
+            )
             .unwrap();
 
-        let reply = self.client.get_attr("/files/a_file").unwrap();
+        let reply = self.client.get_attr(handle).unwrap();
         assert_eq!(
             *reply
                 .object_attributes

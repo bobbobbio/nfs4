@@ -462,22 +462,14 @@ impl<TransportT: Transport> Client<TransportT> {
         self.raw_client.do_compound(ReturnSecond(sequence, args))
     }
 
-    pub fn get_attr(&mut self, path: impl AsRef<Path>) -> Result<GetAttrRes> {
+    pub fn get_attr(&mut self, handle: FileHandle) -> Result<GetAttrRes> {
         let mut supported_attrs = self.supported_attrs.clone();
 
         supported_attrs.remove(FileAttributeId::TimeAccessSet);
         supported_attrs.remove(FileAttributeId::TimeModifySet);
 
         self.do_compound(ReturnSecond(
-            (
-                PutRootFh,
-                Vec::from_iter(path.as_ref().components().filter_map(|c| match c {
-                    Component::Normal(p) => Some(LookUpArgs {
-                        object_name: p.to_str().unwrap().into(),
-                    }),
-                    _ => None,
-                })),
-            ),
+            PutFhArgs { object: handle },
             GetAttrArgs {
                 attr_request: supported_attrs,
             },
