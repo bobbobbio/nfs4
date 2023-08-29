@@ -77,66 +77,90 @@ fn print_listing(entries: &[nfs4::DirectoryEntry]) {
     }
 }
 
+struct Cli {
+    client: nfs4_client::Client<TcpStream>,
+}
+
+impl Cli {
+    fn get_attr(&mut self, path: PathBuf) -> Result<()> {
+        let handle = self.client.look_up(&path)?;
+        let reply = self.client.get_attr(handle)?;
+        println!("{reply:#?}");
+        Ok(())
+    }
+
+    fn read_dir(&mut self, path: PathBuf) -> Result<()> {
+        let handle = self.client.look_up(&path)?;
+        let reply = self.client.read_dir(handle)?;
+        print_listing(&reply);
+        Ok(())
+    }
+
+    fn remove(&mut self, path: PathBuf) -> Result<()> {
+        let (parent_dir, name) = (path.parent().unwrap(), path.file_name().unwrap());
+        let parent = self.client.look_up(parent_dir)?;
+        self.client.remove(parent, name.to_str().unwrap())?;
+        Ok(())
+    }
+
+    fn download(&mut self, remote: PathBuf, local: PathBuf) -> Result<()> {
+        let local_file = if local.to_string_lossy().ends_with('/') {
+            local.join(remote.file_name().unwrap())
+        } else {
+            local
+        };
+
+        let handle = self.client.look_up(&remote)?;
+        let mut remote_attrs = self.client.get_attr(handle.clone())?.object_attributes;
+        let size = remote_attrs.remove_as(FileAttributeId::Size).unwrap();
+
+        let progress = ProgressBar::new(size).with_style(
+            ProgressStyle::with_template("{wide_bar} {percent}% {binary_bytes_per_sec}").unwrap(),
+        );
+        let file = std::fs::File::create(local_file)?;
+        self.client.read_all(handle, progress.wrap_write(file))?;
+        Ok(())
+    }
+
+    fn set_attr(&mut self, path: PathBuf, attrs: FileAttributes) -> Result<()> {
+        let handle = self.client.look_up(&path)?;
+        self.client.set_attr(handle, attrs)?;
+        Ok(())
+    }
+
+    fn upload(&mut self, local: PathBuf, remote: PathBuf) -> Result<()> {
+        let (parent_dir, name) = if remote.to_string_lossy().ends_with('/') {
+            (remote.as_ref(), local.file_name().unwrap())
+        } else {
+            (remote.parent().unwrap(), remote.file_name().unwrap())
+        };
+
+        let parent = self.client.look_up(parent_dir)?;
+        let handle = self.client.create_file(parent, name.to_str().unwrap())?;
+
+        let file = std::fs::File::open(local)?;
+        let progress = ProgressBar::new(file.metadata()?.len()).with_style(
+            ProgressStyle::with_template("{wide_bar} {percent}% {binary_bytes_per_sec}").unwrap(),
+        );
+        self.client.write_all(handle, progress.wrap_read(file))?;
+        Ok(())
+    }
+}
+
 fn main() -> Result<()> {
     let opts = Options::parse();
 
     let transport = TcpStream::connect((opts.host, opts.port))?;
-    let mut client = nfs4_client::Client::new(transport)?;
+    let client = nfs4_client::Client::new(transport)?;
+
+    let mut cli = Cli { client };
     match opts.command {
-        Command::GetAttr { path } => {
-            let handle = client.look_up(&path)?;
-            let reply = client.get_attr(handle)?;
-            println!("{reply:#?}");
-        }
-        Command::ReadDir { path } => {
-            let handle = client.look_up(&path)?;
-            let reply = client.read_dir(handle)?;
-            print_listing(&reply);
-        }
-        Command::Remove { path } => {
-            let (parent_dir, name) = (path.parent().unwrap(), path.file_name().unwrap());
-            let parent = client.look_up(parent_dir)?;
-            client.remove(parent, name.to_str().unwrap())?;
-        }
-        Command::Download { remote, local } => {
-            let local_file = if local.to_string_lossy().ends_with('/') {
-                local.join(remote.file_name().unwrap())
-            } else {
-                local
-            };
-
-            let handle = client.look_up(&remote)?;
-            let mut remote_attrs = client.get_attr(handle.clone())?.object_attributes;
-            let size = remote_attrs.remove_as(FileAttributeId::Size).unwrap();
-
-            let progress = ProgressBar::new(size).with_style(
-                ProgressStyle::with_template("{wide_bar} {percent}% {binary_bytes_per_sec}")
-                    .unwrap(),
-            );
-            let file = std::fs::File::create(local_file)?;
-            client.read_all(handle, progress.wrap_write(file))?;
-        }
-        Command::SetAttr { path, attrs } => {
-            let handle = client.look_up(&path)?;
-            client.set_attr(handle, attrs)?;
-        }
-        Command::Upload { local, remote } => {
-            let (parent_dir, name) = if remote.to_string_lossy().ends_with('/') {
-                (remote.as_ref(), local.file_name().unwrap())
-            } else {
-                (remote.parent().unwrap(), remote.file_name().unwrap())
-            };
-
-            let parent = client.look_up(parent_dir)?;
-            let handle = client.create_file(parent, name.to_str().unwrap())?;
-
-            let file = std::fs::File::open(local)?;
-            let progress = ProgressBar::new(file.metadata()?.len()).with_style(
-                ProgressStyle::with_template("{wide_bar} {percent}% {binary_bytes_per_sec}")
-                    .unwrap(),
-            );
-            client.write_all(handle, progress.wrap_read(file))?;
-        }
+        Command::GetAttr { path } => cli.get_attr(path)?,
+        Command::ReadDir { path } => cli.read_dir(path)?,
+        Command::Remove { path } => cli.remove(path)?,
+        Command::Download { remote, local } => cli.download(remote, local)?,
+        Command::SetAttr { path, attrs } => cli.set_attr(path, attrs)?,
+        Command::Upload { local, remote } => cli.upload(local, remote)?,
     }
 
     Ok(())
