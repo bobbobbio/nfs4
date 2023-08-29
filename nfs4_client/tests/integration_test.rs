@@ -15,8 +15,7 @@ macro_rules! test {
 
 struct Fixture<'machine> {
     machine: &'machine mut vm_runner::Machine,
-    client: Client,
-    transport: TcpStream,
+    client: Client<TcpStream>,
 }
 
 impl<'machine> Fixture<'machine> {
@@ -26,14 +25,10 @@ impl<'machine> Fixture<'machine> {
             .iter()
             .find(|p| p.guest == NFS_PORT)
             .unwrap();
-        let mut transport = TcpStream::connect(("127.0.0.1", port.host)).unwrap();
-        let client = Client::new(&mut transport).unwrap();
+        let transport = TcpStream::connect(("127.0.0.1", port.host)).unwrap();
+        let client = Client::new(transport).unwrap();
 
-        Self {
-            machine,
-            client,
-            transport,
-        }
+        Self { machine, client }
     }
 
     fn run(&mut self) {
@@ -60,7 +55,7 @@ impl<'machine> Fixture<'machine> {
     //              |_|
 
     fn get_file_size(&mut self, path: &str) -> u64 {
-        let reply = self.client.get_attr(&mut self.transport, path).unwrap();
+        let reply = self.client.get_attr(path).unwrap();
         *reply
             .object_attributes
             .get_as::<u64>(FileAttributeId::Size)
@@ -70,24 +65,15 @@ impl<'machine> Fixture<'machine> {
     fn create_file(&mut self, path: impl AsRef<Path>) -> FileHandle {
         let path = path.as_ref();
 
-        let parent = self
-            .client
-            .look_up(&mut self.transport, path.parent().unwrap())
-            .unwrap();
+        let parent = self.client.look_up(path.parent().unwrap()).unwrap();
         self.client
-            .create_file(
-                &mut self.transport,
-                parent.clone(),
-                path.file_name().unwrap().to_str().unwrap(),
-            )
+            .create_file(parent.clone(), path.file_name().unwrap().to_str().unwrap())
             .unwrap()
     }
 
     fn create_file_test(&mut self) {
         self.create_file("/files/a_file");
-        self.client
-            .look_up(&mut self.transport, "/files/a_file")
-            .unwrap();
+        self.client.look_up("/files/a_file").unwrap();
     }
 
     //  _            _
@@ -102,12 +88,12 @@ impl<'machine> Fixture<'machine> {
 
         let test_contents: Vec<u8> = (0..100_000).map(|v| (v % 255) as u8).collect();
         self.client
-            .write_all(&mut self.transport, handle.clone(), &test_contents[..])
+            .write_all(handle.clone(), &test_contents[..])
             .unwrap();
 
         let mut read_data = vec![];
         self.client
-            .read_all(&mut self.transport, handle.clone(), &mut read_data)
+            .read_all(handle.clone(), &mut read_data)
             .unwrap();
         assert_eq!(read_data, test_contents);
 
@@ -118,17 +104,10 @@ impl<'machine> Fixture<'machine> {
         let handle = self.create_file("/files/a_file");
 
         self.client
-            .set_attr(
-                &mut self.transport,
-                handle,
-                [FileAttribute::Size(100)].into_iter().collect(),
-            )
+            .set_attr(handle, [FileAttribute::Size(100)].into_iter().collect())
             .unwrap();
 
-        let reply = self
-            .client
-            .get_attr(&mut self.transport, "/files/a_file")
-            .unwrap();
+        let reply = self.client.get_attr("/files/a_file").unwrap();
         assert_eq!(
             *reply
                 .object_attributes
@@ -139,36 +118,27 @@ impl<'machine> Fixture<'machine> {
     }
 
     fn read_dir_test(&mut self) {
-        let parent = self.client.look_up(&mut self.transport, "/files").unwrap();
+        let parent = self.client.look_up("/files").unwrap();
 
         let mut expected = BTreeSet::new();
 
         for i in 0..100 {
             let name = format!("a_file{i}");
-            self.client
-                .create_file(&mut self.transport, parent.clone(), &name)
-                .unwrap();
+            self.client.create_file(parent.clone(), &name).unwrap();
             expected.insert(name);
         }
 
-        let entries = self
-            .client
-            .read_dir(&mut self.transport, parent.clone())
-            .unwrap();
+        let entries = self.client.read_dir(parent.clone()).unwrap();
         let actual: BTreeSet<String> = entries.into_iter().map(|e| e.name).collect();
         assert_eq!(actual, expected);
     }
 
     fn remove_test(&mut self) {
         self.create_file("/files/a_file");
-        let parent = self.client.look_up(&mut self.transport, "/files").unwrap();
+        let parent = self.client.look_up("/files").unwrap();
 
-        self.client
-            .remove(&mut self.transport, parent, "a_file")
-            .unwrap();
-        self.client
-            .look_up(&mut self.transport, "/files/a_file")
-            .unwrap_err();
+        self.client.remove(parent, "a_file").unwrap();
+        self.client.look_up("/files/a_file").unwrap_err();
     }
 }
 

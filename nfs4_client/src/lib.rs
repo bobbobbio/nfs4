@@ -310,20 +310,16 @@ tuple_impls! {
     (0 A 1 B 2 C 3 D 4 E 5 F 6 G 7 H 8 I 9 J 10 K 11 L 12 M 13 N 14 O 15 P 16 Q)
 }
 
-struct ClientWithoutSession {
-    rpc_client: RpcClient,
+struct ClientWithoutSession<TransportT> {
+    rpc_client: RpcClient<TransportT>,
 }
 
-impl ClientWithoutSession {
-    fn new(rpc_client: RpcClient) -> Self {
+impl<TransportT: Transport> ClientWithoutSession<TransportT> {
+    fn new(rpc_client: RpcClient<TransportT>) -> Self {
         Self { rpc_client }
     }
 
-    fn do_compound<'a, Args>(
-        &mut self,
-        mut transport: &mut impl Transport,
-        args: Args,
-    ) -> Result<Args::Response>
+    fn do_compound<'a, Args>(&mut self, args: Args) -> Result<Args::Response>
     where
         Args: CompoundRequest,
     {
@@ -335,9 +331,9 @@ impl ClientWithoutSession {
         };
 
         self.rpc_client
-            .send_request(&mut transport, COMPOUND_PROCEDURE, call_args)?;
+            .send_request(COMPOUND_PROCEDURE, call_args)?;
 
-        let compound_reply: CompoundRes = self.rpc_client.receive_reply(&mut transport)?;
+        let compound_reply: CompoundRes = self.rpc_client.receive_reply()?;
 
         if let StatusResult::Err(e) = compound_reply.status {
             return Err(e.into());
@@ -364,8 +360,8 @@ fn random_client_owner() -> ClientOwner {
     }
 }
 
-pub struct Client {
-    raw_client: ClientWithoutSession,
+pub struct Client<TransportT> {
+    raw_client: ClientWithoutSession<TransportT>,
     session: CreateSessionRes,
     sequence_id: SequenceId,
     client_id: ClientId,
@@ -375,50 +371,44 @@ pub struct Client {
     supported_attrs: EnumSet<FileAttributeId>,
 }
 
-impl Client {
-    pub fn new(transport: &mut impl Transport) -> Result<Self> {
-        let mut raw_client = ClientWithoutSession::new(RpcClient::new(NFS));
+impl<TransportT: Transport> Client<TransportT> {
+    pub fn new(transport: TransportT) -> Result<Self> {
+        let mut raw_client = ClientWithoutSession::new(RpcClient::new(transport, NFS));
 
         let client_owner = random_client_owner();
-        let eid_res = raw_client.do_compound(
-            transport,
-            ExchangeIdArgs {
-                client_owner: client_owner.clone(),
-                flags: ExchangeIdFlags::empty(),
-                state_protect: StateProtect::None,
-                client_impl_id: None,
-            },
-        )?;
+        let eid_res = raw_client.do_compound(ExchangeIdArgs {
+            client_owner: client_owner.clone(),
+            flags: ExchangeIdFlags::empty(),
+            state_protect: StateProtect::None,
+            client_impl_id: None,
+        })?;
 
         let client_id = eid_res.client_id;
-        let session = raw_client.do_compound(
-            transport,
-            CreateSessionArgs {
-                client_id,
-                sequence_id: SequenceId(1),
-                flags: CreateSessionFlags::empty(),
-                fore_channel_attrs: ChannelAttrs {
-                    header_pad_size: 0,
-                    max_request_size: 1049620,
-                    max_response_size: 1049480,
-                    max_response_size_cached: 7584,
-                    max_operations: 16,
-                    max_requests: 64,
-                    rdma_ird: None,
-                },
-                back_channel_attrs: ChannelAttrs {
-                    header_pad_size: 0,
-                    max_request_size: 4096,
-                    max_response_size: 4096,
-                    max_response_size_cached: 0,
-                    max_operations: 16,
-                    max_requests: 16,
-                    rdma_ird: None,
-                },
-                program: NFS_CB,
-                security_parameters: vec![],
+        let session = raw_client.do_compound(CreateSessionArgs {
+            client_id,
+            sequence_id: SequenceId(1),
+            flags: CreateSessionFlags::empty(),
+            fore_channel_attrs: ChannelAttrs {
+                header_pad_size: 0,
+                max_request_size: 1049620,
+                max_response_size: 1049480,
+                max_response_size_cached: 7584,
+                max_operations: 16,
+                max_requests: 64,
+                rdma_ird: None,
             },
-        )?;
+            back_channel_attrs: ChannelAttrs {
+                header_pad_size: 0,
+                max_request_size: 4096,
+                max_response_size: 4096,
+                max_response_size_cached: 0,
+                max_operations: 16,
+                max_requests: 16,
+                rdma_ird: None,
+            },
+            program: NFS_CB,
+            security_parameters: vec![],
+        })?;
 
         let mut client = Self {
             raw_client,
@@ -432,21 +422,18 @@ impl Client {
         };
 
         let mut root_attrs = client
-            .do_compound(
-                transport,
-                ReturnSecond(
-                    (ReclaimCompleteArgs { one_fs: false }, PutRootFh),
-                    GetAttrArgs {
-                        attr_request: [
-                            FileAttributeId::SupportedAttrs,
-                            FileAttributeId::MaxRead,
-                            FileAttributeId::MaxWrite,
-                        ]
-                        .into_iter()
-                        .collect(),
-                    },
-                ),
-            )?
+            .do_compound(ReturnSecond(
+                (ReclaimCompleteArgs { one_fs: false }, PutRootFh),
+                GetAttrArgs {
+                    attr_request: [
+                        FileAttributeId::SupportedAttrs,
+                        FileAttributeId::MaxRead,
+                        FileAttributeId::MaxWrite,
+                    ]
+                    .into_iter()
+                    .collect(),
+                },
+            ))?
             .object_attributes;
 
         client.supported_attrs = root_attrs
@@ -458,11 +445,7 @@ impl Client {
         Ok(client)
     }
 
-    fn do_compound<'a, Args>(
-        &mut self,
-        transport: &mut impl Transport,
-        args: Args,
-    ) -> Result<Args::Response>
+    fn do_compound<'a, Args>(&mut self, args: Args) -> Result<Args::Response>
     where
         Args: CompoundRequest,
     {
@@ -476,24 +459,34 @@ impl Client {
 
         self.sequence_id.incr();
 
-        Ok(self
-            .raw_client
-            .do_compound(transport, ReturnSecond(sequence, args))?)
+        Ok(self.raw_client.do_compound(ReturnSecond(sequence, args))?)
     }
 
-    pub fn get_attr(
-        &mut self,
-        transport: &mut impl Transport,
-        path: impl AsRef<Path>,
-    ) -> Result<GetAttrRes> {
+    pub fn get_attr(&mut self, path: impl AsRef<Path>) -> Result<GetAttrRes> {
         let mut supported_attrs = self.supported_attrs.clone();
 
         supported_attrs.remove(FileAttributeId::TimeAccessSet);
         supported_attrs.remove(FileAttributeId::TimeModifySet);
 
-        Ok(self.do_compound(
-            transport,
-            ReturnSecond(
+        Ok(self.do_compound(ReturnSecond(
+            (
+                PutRootFh,
+                Vec::from_iter(path.as_ref().components().filter_map(|c| match c {
+                    Component::Normal(p) => Some(LookUpArgs {
+                        object_name: p.to_str().unwrap().into(),
+                    }),
+                    _ => None,
+                })),
+            ),
+            GetAttrArgs {
+                attr_request: supported_attrs,
+            },
+        ))?)
+    }
+
+    pub fn look_up(&mut self, path: impl AsRef<Path>) -> Result<FileHandle> {
+        Ok(self
+            .do_compound(ReturnSecond(
                 (
                     PutRootFh,
                     Vec::from_iter(path.as_ref().components().filter_map(|c| match c {
@@ -503,71 +496,26 @@ impl Client {
                         _ => None,
                     })),
                 ),
-                GetAttrArgs {
-                    attr_request: supported_attrs,
-                },
-            ),
-        )?)
-    }
-
-    pub fn look_up(
-        &mut self,
-        transport: &mut impl Transport,
-        path: impl AsRef<Path>,
-    ) -> Result<FileHandle> {
-        Ok(self
-            .do_compound(
-                transport,
-                ReturnSecond(
-                    (
-                        PutRootFh,
-                        Vec::from_iter(path.as_ref().components().filter_map(|c| match c {
-                            Component::Normal(p) => Some(LookUpArgs {
-                                object_name: p.to_str().unwrap().into(),
-                            }),
-                            _ => None,
-                        })),
-                    ),
-                    GetFh,
-                ),
-            )?
+                GetFh,
+            ))?
             .object)
     }
 
-    pub fn read(
-        &mut self,
-        transport: &mut impl Transport,
-        handle: FileHandle,
-        offset: u64,
-        count: u32,
-    ) -> Result<ReadRes> {
-        Ok(self.do_compound(
-            transport,
-            ReturnSecond(
-                PutFhArgs { object: handle },
-                ReadArgs {
-                    state_id: StateId::anonymous(),
-                    offset,
-                    count,
-                },
-            ),
-        )?)
+    pub fn read(&mut self, handle: FileHandle, offset: u64, count: u32) -> Result<ReadRes> {
+        Ok(self.do_compound(ReturnSecond(
+            PutFhArgs { object: handle },
+            ReadArgs {
+                state_id: StateId::anonymous(),
+                offset,
+                count,
+            },
+        ))?)
     }
 
-    pub fn read_all(
-        &mut self,
-        transport: &mut impl Transport,
-        handle: FileHandle,
-        mut sink: impl io::Write,
-    ) -> Result<()> {
+    pub fn read_all(&mut self, handle: FileHandle, mut sink: impl io::Write) -> Result<()> {
         let mut offset = 0;
         loop {
-            let read_res = self.read(
-                transport,
-                handle.clone(),
-                offset,
-                self.max_read.try_into().unwrap(),
-            )?;
+            let read_res = self.read(handle.clone(), offset, self.max_read.try_into().unwrap())?;
             offset += read_res.data.len() as u64;
             sink.write_all(&read_res.data)?;
             if read_res.eof {
@@ -577,33 +525,19 @@ impl Client {
         Ok(())
     }
 
-    pub fn write(
-        &mut self,
-        transport: &mut impl Transport,
-        handle: FileHandle,
-        offset: u64,
-        data: Vec<u8>,
-    ) -> Result<WriteRes> {
-        Ok(self.do_compound(
-            transport,
-            ReturnSecond(
-                PutFhArgs { object: handle },
-                WriteArgs {
-                    state_id: StateId::anonymous(),
-                    offset,
-                    stable: StableHow::FileSync,
-                    data,
-                },
-            ),
-        )?)
+    pub fn write(&mut self, handle: FileHandle, offset: u64, data: Vec<u8>) -> Result<WriteRes> {
+        Ok(self.do_compound(ReturnSecond(
+            PutFhArgs { object: handle },
+            WriteArgs {
+                state_id: StateId::anonymous(),
+                offset,
+                stable: StableHow::FileSync,
+                data,
+            },
+        ))?)
     }
 
-    pub fn write_all(
-        &mut self,
-        transport: &mut impl Transport,
-        handle: FileHandle,
-        mut source: impl io::Read,
-    ) -> Result<()> {
+    pub fn write_all(&mut self, handle: FileHandle, mut source: impl io::Read) -> Result<()> {
         let mut offset = 0;
         loop {
             let mut buf = vec![0; self.max_write as usize];
@@ -615,7 +549,7 @@ impl Client {
             buf.resize(amount_read, 0);
 
             while buf.len() > 0 {
-                let write_res = self.write(transport, handle.clone(), offset, buf.clone())?;
+                let write_res = self.write(handle.clone(), offset, buf.clone())?;
                 buf = buf[write_res.count as usize..].to_owned();
             }
 
@@ -624,43 +558,31 @@ impl Client {
         Ok(())
     }
 
-    pub fn create_file(
-        &mut self,
-        transport: &mut impl Transport,
-        parent: FileHandle,
-        name: &str,
-    ) -> Result<FileHandle> {
+    pub fn create_file(&mut self, parent: FileHandle, name: &str) -> Result<FileHandle> {
         Ok(self
-            .do_compound(
-                transport,
-                ReturnSecond(
-                    (
-                        PutFhArgs { object: parent },
-                        OpenArgs {
-                            sequence_id: SequenceId(0),
-                            share_access: ShareAccess::WRITE,
-                            share_deny: ShareDeny::NONE,
-                            owner: StateOwner {
-                                client_id: self.client_id,
-                                opaque: self.client_owner.owner_id.clone(),
-                            },
-                            open_how: OpenFlag::OpenCreate(CreateHow::Exclusive {
-                                create_verifier: Verifier(0),
-                            }),
-                            claim: OpenClaim::Null { file: name.into() },
+            .do_compound(ReturnSecond(
+                (
+                    PutFhArgs { object: parent },
+                    OpenArgs {
+                        sequence_id: SequenceId(0),
+                        share_access: ShareAccess::WRITE,
+                        share_deny: ShareDeny::NONE,
+                        owner: StateOwner {
+                            client_id: self.client_id,
+                            opaque: self.client_owner.owner_id.clone(),
                         },
-                    ),
-                    GetFh,
+                        open_how: OpenFlag::OpenCreate(CreateHow::Exclusive {
+                            create_verifier: Verifier(0),
+                        }),
+                        claim: OpenClaim::Null { file: name.into() },
+                    },
                 ),
-            )?
+                GetFh,
+            ))?
             .object)
     }
 
-    pub fn read_dir(
-        &mut self,
-        transport: &mut impl Transport,
-        handle: FileHandle,
-    ) -> Result<Vec<DirectoryEntry>> {
+    pub fn read_dir(&mut self, handle: FileHandle) -> Result<Vec<DirectoryEntry>> {
         let mut supported_attrs = self.supported_attrs.clone();
 
         supported_attrs.remove(FileAttributeId::TimeAccessSet);
@@ -670,21 +592,18 @@ impl Client {
 
         let mut cookie = Cookie::initial();
         loop {
-            let res = self.do_compound(
-                transport,
-                ReturnSecond(
-                    PutFhArgs {
-                        object: handle.clone(),
-                    },
-                    ReadDirArgs {
-                        cookie,
-                        cookie_verifier: Verifier(0),
-                        directory_count: 1000,
-                        max_count: 1000,
-                        attr_request: supported_attrs.clone(),
-                    },
-                ),
-            )?;
+            let res = self.do_compound(ReturnSecond(
+                PutFhArgs {
+                    object: handle.clone(),
+                },
+                ReadDirArgs {
+                    cookie,
+                    cookie_verifier: Verifier(0),
+                    directory_count: 1000,
+                    max_count: 1000,
+                    attr_request: supported_attrs.clone(),
+                },
+            ))?;
 
             entries.extend(res.reply.entries);
 
@@ -695,41 +614,25 @@ impl Client {
         }
     }
 
-    pub fn set_attr(
-        &mut self,
-        transport: &mut impl Transport,
-        handle: FileHandle,
-        attrs: FileAttributes,
-    ) -> Result<()> {
-        self.do_compound(
-            transport,
-            ReturnSecond(
-                PutFhArgs { object: handle },
-                SetAttrArgs {
-                    state_id: StateId::anonymous(),
-                    object_attributes: attrs,
-                },
-            ),
-        )?;
+    pub fn set_attr(&mut self, handle: FileHandle, attrs: FileAttributes) -> Result<()> {
+        self.do_compound(ReturnSecond(
+            PutFhArgs { object: handle },
+            SetAttrArgs {
+                state_id: StateId::anonymous(),
+                object_attributes: attrs,
+            },
+        ))?;
         Ok(())
     }
 
-    pub fn remove(
-        &mut self,
-        transport: &mut impl Transport,
-        handle: FileHandle,
-        entry_name: &str,
-    ) -> Result<ChangeInfo> {
+    pub fn remove(&mut self, handle: FileHandle, entry_name: &str) -> Result<ChangeInfo> {
         Ok(self
-            .do_compound(
-                transport,
-                ReturnSecond(
-                    PutFhArgs { object: handle },
-                    RemoveArgs {
-                        target: entry_name.into(),
-                    },
-                ),
-            )?
+            .do_compound(ReturnSecond(
+                PutFhArgs { object: handle },
+                RemoveArgs {
+                    target: entry_name.into(),
+                },
+            ))?
             .change_info)
     }
 }

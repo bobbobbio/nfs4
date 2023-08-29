@@ -32,25 +32,22 @@ pub const PORT_MAPPER: u32 = 100000;
 pub const PORT_MAPPER_PORT: u16 = 111;
 pub const NULL_PROCEDURE: u32 = 0;
 
-pub struct RpcClient {
+pub struct RpcClient<TransportT> {
     xid: Xid,
     program: u32,
+    transport: TransportT,
 }
 
-impl RpcClient {
-    pub fn new(program: u32) -> Self {
+impl<TransportT: Transport> RpcClient<TransportT> {
+    pub fn new(transport: TransportT, program: u32) -> Self {
         Self {
             xid: Xid(1),
             program,
+            transport,
         }
     }
 
-    pub fn send_request<T: Serialize>(
-        &mut self,
-        transport: &mut impl Transport,
-        procedure: u32,
-        call_args: T,
-    ) -> Result<()> {
+    pub fn send_request<T: Serialize>(&mut self, procedure: u32, call_args: T) -> Result<()> {
         let message = Message {
             xid: self.xid.clone(),
             body: MessageBody::Call(CallBody {
@@ -75,21 +72,18 @@ impl RpcClient {
         let fragment_header = (serialized.len() - 4) as u32 | 0x1 << 31;
         serde_xdr::to_writer(&mut &mut serialized[..4], &fragment_header)?;
 
-        transport.write_all(&serialized[..])?;
+        self.transport.write_all(&serialized[..])?;
 
         self.xid = Xid(self.xid.0 + 1);
 
         Ok(())
     }
 
-    pub fn receive_reply<T: DeserializeOwned + fmt::Debug>(
-        &mut self,
-        mut transport: &mut impl Transport,
-    ) -> Result<T> {
-        let fragment_header: u32 = serde_xdr::from_reader(transport)?;
+    pub fn receive_reply<T: DeserializeOwned + fmt::Debug>(&mut self) -> Result<T> {
+        let fragment_header: u32 = serde_xdr::from_reader(&mut self.transport)?;
         let length = fragment_header & !(0x1 << 31);
         let reply: Message<T> =
-            serde_xdr::from_reader(&mut io::Read::take(&mut transport, length as u64))?;
+            serde_xdr::from_reader(&mut io::Read::take(&mut self.transport, length as u64))?;
 
         if let Message {
             body: MessageBody::Reply(ReplyBody::Accepted(accepted_reply)),
@@ -118,13 +112,11 @@ fn ping() {
             .iter()
             .find(|p| p.guest == PORT_MAPPER_PORT)
             .unwrap();
-        let mut transport = std::net::TcpStream::connect(("127.0.0.1", port.host)).unwrap();
-        let mut client = RpcClient::new(PORT_MAPPER);
+        let transport = std::net::TcpStream::connect(("127.0.0.1", port.host)).unwrap();
+        let mut client = RpcClient::new(transport, PORT_MAPPER);
 
-        client
-            .send_request(&mut transport, NULL_PROCEDURE, ())
-            .unwrap();
+        client.send_request(NULL_PROCEDURE, ()).unwrap();
 
-        client.receive_reply::<()>(&mut transport).unwrap();
+        client.receive_reply::<()>().unwrap();
     });
 }
