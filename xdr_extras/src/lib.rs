@@ -93,9 +93,8 @@ pub mod array_as_struct {
                 while let Some(v) = seq.next_element::<u32>()? {
                     res.extend(v.to_be_bytes());
                 }
-                Ok(res
-                    .try_into()
-                    .map_err(|_| serde::de::Error::custom("not enough elements"))?)
+                res.try_into()
+                    .map_err(|_| serde::de::Error::custom("not enough elements"))
             }
         }
 

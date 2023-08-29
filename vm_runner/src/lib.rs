@@ -5,7 +5,7 @@ use std::net::{TcpListener, TcpStream};
 use std::path::Path;
 use std::process::Command;
 
-pub const VM_HASH: &'static str = env!("VM_HASH");
+pub const VM_HASH: &str = env!("VM_HASH");
 
 struct Qmp(TcpStream);
 
@@ -264,7 +264,7 @@ fn sh<'a>(cmd: impl IntoIterator<Item = &'a str>) {
     assert!(status.success(), "{cmd:?} failed with status: {status:?}");
 }
 
-const ALPINE: &'static str =
+const ALPINE: &str =
     "https://dl-cdn.alpinelinux.org/alpine/v3.18/releases/x86_64/alpine-standard-3.18.2-x86_64.iso";
 
 fn download<Url>(url: Url, dst: impl AsRef<Path>)

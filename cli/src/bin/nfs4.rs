@@ -11,8 +11,8 @@ use std::path::PathBuf;
 fn file_attrs(s: &str) -> std::result::Result<FileAttributes, String> {
     let mut attrs = FileAttributes::default();
 
-    for e in s.split(",") {
-        let i = e.find("=").ok_or(String::from("Missing `=`"))?;
+    for e in s.split(',') {
+        let i = e.find('=').ok_or(String::from("Missing `=`"))?;
         let key = &e[..i];
         let value = &e[(i + 1)..];
         attrs.insert(match key {

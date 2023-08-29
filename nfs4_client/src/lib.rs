@@ -254,7 +254,7 @@ where
         geometry: Self::Geometry,
     ) -> Result<Self::Response> {
         A::process_reply(res_array, geometry.0)?;
-        Ok(B::process_reply(res_array, geometry.1)?)
+        B::process_reply(res_array, geometry.1)
     }
 }
 
@@ -319,7 +319,7 @@ impl<TransportT: Transport> ClientWithoutSession<TransportT> {
         Self { rpc_client }
     }
 
-    fn do_compound<'a, Args>(&mut self, args: Args) -> Result<Args::Response>
+    fn do_compound<Args>(&mut self, args: Args) -> Result<Args::Response>
     where
         Args: CompoundRequest,
     {
@@ -445,7 +445,7 @@ impl<TransportT: Transport> Client<TransportT> {
         Ok(client)
     }
 
-    fn do_compound<'a, Args>(&mut self, args: Args) -> Result<Args::Response>
+    fn do_compound<Args>(&mut self, args: Args) -> Result<Args::Response>
     where
         Args: CompoundRequest,
     {
@@ -459,7 +459,7 @@ impl<TransportT: Transport> Client<TransportT> {
 
         self.sequence_id.incr();
 
-        Ok(self.raw_client.do_compound(ReturnSecond(sequence, args))?)
+        self.raw_client.do_compound(ReturnSecond(sequence, args))
     }
 
     pub fn get_attr(&mut self, path: impl AsRef<Path>) -> Result<GetAttrRes> {
@@ -468,7 +468,7 @@ impl<TransportT: Transport> Client<TransportT> {
         supported_attrs.remove(FileAttributeId::TimeAccessSet);
         supported_attrs.remove(FileAttributeId::TimeModifySet);
 
-        Ok(self.do_compound(ReturnSecond(
+        self.do_compound(ReturnSecond(
             (
                 PutRootFh,
                 Vec::from_iter(path.as_ref().components().filter_map(|c| match c {
@@ -481,7 +481,7 @@ impl<TransportT: Transport> Client<TransportT> {
             GetAttrArgs {
                 attr_request: supported_attrs,
             },
-        ))?)
+        ))
     }
 
     pub fn look_up(&mut self, path: impl AsRef<Path>) -> Result<FileHandle> {
@@ -502,14 +502,14 @@ impl<TransportT: Transport> Client<TransportT> {
     }
 
     pub fn read(&mut self, handle: FileHandle, offset: u64, count: u32) -> Result<ReadRes> {
-        Ok(self.do_compound(ReturnSecond(
+        self.do_compound(ReturnSecond(
             PutFhArgs { object: handle },
             ReadArgs {
                 state_id: StateId::anonymous(),
                 offset,
                 count,
             },
-        ))?)
+        ))
     }
 
     pub fn read_all(&mut self, handle: FileHandle, mut sink: impl io::Write) -> Result<()> {
@@ -526,7 +526,7 @@ impl<TransportT: Transport> Client<TransportT> {
     }
 
     pub fn write(&mut self, handle: FileHandle, offset: u64, data: Vec<u8>) -> Result<WriteRes> {
-        Ok(self.do_compound(ReturnSecond(
+        self.do_compound(ReturnSecond(
             PutFhArgs { object: handle },
             WriteArgs {
                 state_id: StateId::anonymous(),
@@ -534,7 +534,7 @@ impl<TransportT: Transport> Client<TransportT> {
                 stable: StableHow::FileSync,
                 data,
             },
-        ))?)
+        ))
     }
 
     pub fn write_all(&mut self, handle: FileHandle, mut source: impl io::Read) -> Result<()> {
@@ -548,7 +548,7 @@ impl<TransportT: Transport> Client<TransportT> {
 
             buf.resize(amount_read, 0);
 
-            while buf.len() > 0 {
+            while !buf.is_empty() {
                 let write_res = self.write(handle.clone(), offset, buf.clone())?;
                 buf = buf[write_res.count as usize..].to_owned();
             }

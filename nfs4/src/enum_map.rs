@@ -150,14 +150,16 @@ where
     where
         &'a T: TryFrom<&'a V>,
     {
-        self.0.get(&key).map(|v| v.try_into().ok()).flatten()
+        let v = self.0.get(&key)?;
+        v.try_into().ok()
     }
 
     pub fn remove_as<T>(&mut self, key: K) -> Option<T>
     where
         T: TryFrom<V>,
     {
-        self.0.remove(&key).map(|v| v.try_into().ok()).flatten()
+        let v = self.0.remove(&key)?;
+        v.try_into().ok()
     }
 }
 
@@ -235,11 +237,8 @@ where
     where
         D: Deserializer<'de>,
     {
-        Ok(
-            Self::try_from_raw(EnumSetRaw::deserialize(deserializer)?).map_err(|e| {
-                serde::de::Error::custom(&format!("Failed to deserialize EnumSet: {e:?}"))
-            })?,
-        )
+        Self::try_from_raw(EnumSetRaw::deserialize(deserializer)?)
+            .map_err(|e| serde::de::Error::custom(format!("Failed to deserialize EnumSet: {e:?}")))
     }
 }
 
@@ -273,10 +272,7 @@ where
     where
         D: Deserializer<'de>,
     {
-        Ok(
-            Self::try_from_raw(EnumMapRaw::deserialize(deserializer)?).map_err(|e| {
-                serde::de::Error::custom(&format!("Failed to deserialize EnumMap: {e:?}"))
-            })?,
-        )
+        Self::try_from_raw(EnumMapRaw::deserialize(deserializer)?)
+            .map_err(|e| serde::de::Error::custom(format!("Failed to deserialize EnumMap: {e:?}")))
     }
 }

@@ -19,7 +19,7 @@ fn find_repr(attrs: Vec<Attribute>) -> Result<Ident> {
     repr_attr.parse_args()
 }
 
-fn has_other_attr(attrs: &Vec<Attribute>) -> bool {
+fn has_other_attr(attrs: &[Attribute]) -> bool {
     attrs.iter().any(|a| {
         if a.path().is_ident("serde") {
             let mut is_other = false;
