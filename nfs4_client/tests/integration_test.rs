@@ -33,12 +33,13 @@ impl<'machine> Fixture<'machine> {
 
     fn run(&mut self) {
         let tests = [
+            test!(create_directory_test),
             test!(create_file_test),
-            test!(read_write_test),
-            test!(set_attr_test),
             test!(read_dir_test),
+            test!(read_write_test),
             test!(remove_test),
             test!(rename_test),
+            test!(set_attr_test),
         ];
 
         for (test, test_name) in tests {
@@ -155,6 +156,16 @@ impl<'machine> Fixture<'machine> {
 
         self.client.look_up("/files/a_file").unwrap_err();
         self.client.look_up("/files/b_file").unwrap();
+    }
+
+    fn create_directory_test(&mut self) {
+        let parent = self.client.look_up("/files").unwrap();
+        let new_dir = self
+            .client
+            .create_directory(parent, "foobar", Default::default())
+            .unwrap();
+        self.client.create_file(new_dir, "a_file").unwrap();
+        self.client.look_up("/files/foobar/a_file").unwrap();
     }
 }
 

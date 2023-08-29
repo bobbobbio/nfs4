@@ -647,4 +647,25 @@ impl<TransportT: Transport> Client<TransportT> {
             },
         ))
     }
+
+    pub fn create_directory(
+        &mut self,
+        parent_dir: FileHandle,
+        name: &str,
+        attrs: FileAttributes,
+    ) -> Result<FileHandle> {
+        Ok(self
+            .do_compound(ReturnSecond(
+                (
+                    PutFhArgs { object: parent_dir },
+                    CreateArgs {
+                        object_type: CreateType::Directory,
+                        object_name: name.to_owned(),
+                        create_attrs: attrs,
+                    },
+                ),
+                GetFh,
+            ))?
+            .object)
+    }
 }
