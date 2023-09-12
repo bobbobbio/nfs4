@@ -134,7 +134,10 @@ impl<'machine> Fixture<'machine> {
             expected.insert(name);
         }
 
-        let entries = self.client.read_dir(parent.clone()).unwrap();
+        let entries = self
+            .client
+            .read_dir(parent.clone(), Default::default())
+            .unwrap();
         let actual: BTreeSet<String> = entries.into_iter().map(|e| e.name).collect();
         assert_eq!(actual, expected);
     }

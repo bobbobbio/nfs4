@@ -91,7 +91,16 @@ impl Cli {
 
     fn read_dir(&mut self, path: PathBuf) -> Result<()> {
         let handle = self.client.look_up(&path)?;
-        let reply = self.client.read_dir(handle)?;
+        let attr_request = [
+            FileAttributeId::Mode,
+            FileAttributeId::NumLinks,
+            FileAttributeId::Owner,
+            FileAttributeId::Size,
+            FileAttributeId::TimeModify,
+        ]
+        .into_iter()
+        .collect();
+        let reply = self.client.read_dir(handle, attr_request)?;
         print_listing(&reply);
         Ok(())
     }

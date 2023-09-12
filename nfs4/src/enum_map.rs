@@ -121,6 +121,10 @@ where
     pub fn remove(&mut self, key: K) -> bool {
         self.0.remove(&key)
     }
+
+    pub fn contains(&self, key: K) -> bool {
+        self.0.contains(&key)
+    }
 }
 
 impl<K, V> EnumMap<K, V>

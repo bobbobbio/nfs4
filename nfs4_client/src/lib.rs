@@ -574,13 +574,16 @@ impl<TransportT: Transport> Client<TransportT> {
             .object)
     }
 
-    pub fn read_dir(&mut self, handle: FileHandle) -> Result<Vec<DirectoryEntry>> {
-        let mut supported_attrs = self.supported_attrs.clone();
-
-        supported_attrs.remove(FileAttributeId::TimeAccessSet);
-        supported_attrs.remove(FileAttributeId::TimeModifySet);
-
+    pub fn read_dir(
+        &mut self,
+        handle: FileHandle,
+        attr_request: EnumSet<FileAttributeId>,
+    ) -> Result<Vec<DirectoryEntry>> {
         let mut entries = vec![];
+        let attr_request: EnumSet<_> = attr_request
+            .into_iter()
+            .filter(|a| self.supported_attrs.contains(*a))
+            .collect();
 
         let mut cookie = Cookie::initial();
         loop {
@@ -593,7 +596,7 @@ impl<TransportT: Transport> Client<TransportT> {
                     cookie_verifier: Verifier(0),
                     directory_count: 1000,
                     max_count: 1000,
-                    attr_request: supported_attrs.clone(),
+                    attr_request: attr_request.clone(),
                 },
             ))?;
 
