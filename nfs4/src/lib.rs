@@ -11,6 +11,7 @@ use serde::{
     ser::{SerializeStruct as _, Serializer},
     Deserialize, Serialize,
 };
+use serde_xdr::opaque_data::fixed_length;
 use std::fmt;
 use sun_rpc::{AuthFlavor, AuthSysParameters};
 use xdr_extras::{DeserializeWithDiscriminant, SerializeWithDiscriminant};
@@ -55,7 +56,7 @@ pub struct AccessArgs {
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct StateId {
     pub sequence_id: u32,
-    #[serde(with = "xdr_extras::array_as_struct")]
+    #[serde(with = "fixed_length")]
     pub other: [u8; 12],
 }
 
@@ -1320,7 +1321,7 @@ pub struct BackchannelCtlArgs {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-pub struct SessionId(#[serde(with = "xdr_extras::array_as_struct")] pub [u8; 16]);
+pub struct SessionId(#[serde(with = "fixed_length")] pub [u8; 16]);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Clone, Debug)]
 pub struct BindConnToSessionArgs {
@@ -1481,7 +1482,7 @@ pub struct GetDirDelegationArgs {
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
-pub struct DeviceId(#[serde(with = "xdr_extras::array_as_struct")] pub [u8; 16]);
+pub struct DeviceId(#[serde(with = "fixed_length")] pub [u8; 16]);
 
 #[derive(Serialize, Deserialize, PartialEq, Eq, Copy, Clone, Debug)]
 pub struct Util(pub u32);
