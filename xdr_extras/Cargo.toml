@@ -9,4 +9,7 @@ license = "MIT"
 
 [dependencies]
 serde = "^1"
-xdr_extras_derive = { version = "^0.1", path = "../xdr_extras_derive" }
+serde_dis = "^0.1"
+
+[dev-dependencies]
+serde-xdr = "^0.6"

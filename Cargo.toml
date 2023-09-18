@@ -23,5 +23,4 @@ members = [
     "vm_runner",
     "vm_test_fixture",
     "xdr_extras",
-    "xdr_extras_derive",
 ]

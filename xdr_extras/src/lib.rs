@@ -1,6 +1,6 @@
 // copyright 2023 Remi Bernotavicius
 
-pub use xdr_extras_derive::*;
+pub use serde_dis::*;
 
 pub mod list {
     use serde::ser::SerializeStruct as _;

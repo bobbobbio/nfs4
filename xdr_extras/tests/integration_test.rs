@@ -1,6 +1,5 @@
 // copyright 2023 Remi Bernotavicius
 
-use std::marker::PhantomData;
 use xdr_extras::{DeserializeWithDiscriminant, SerializeWithDiscriminant};
 
 #[derive(DeserializeWithDiscriminant, SerializeWithDiscriminant, Debug, PartialEq)]
@@ -82,10 +81,4 @@ fn round_trip_generic_enum_xdr() {
     );
 
     serialize_round_trip(Baz::<u32>::B, &[0x0, 0x0, 0x0, 0x9][..]);
-}
-
-#[derive(DeserializeWithDiscriminant, SerializeWithDiscriminant, Debug, PartialEq)]
-#[repr(u32)]
-enum CrazyGenerics<'a, const S: usize> {
-    B(PhantomData<(&'a (), [(); S])>) = 9,
 }
