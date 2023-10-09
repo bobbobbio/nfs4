@@ -320,6 +320,7 @@ fn install_packages(m: &mut Machine) {
     m.run_command("rc-update add nfs");
     m.run_command("rc-service nfs start");
 
+    m.proc.exp_string("alpine:~# ").unwrap();
     m.proc.send_line("tee /etc/exports <<EOF").unwrap();
     m.proc
         .send_line("/files *(rw,sync,no_subtree_check,no_root_squash,insecure)")
@@ -328,6 +329,27 @@ fn install_packages(m: &mut Machine) {
 
     log::info!("NFS installed");
 
+    m.run_command("apk add samba");
+    m.run_command("rc-update add samba");
+    m.run_command("rc-service samba start");
+
+    m.proc.exp_string("alpine:~# ").unwrap();
+    m.proc.send_line("tee /etc/samba/smb.conf <<EOF").unwrap();
+    m.proc.send_line("[files]").unwrap();
+    m.proc.send_line("writable = yes").unwrap();
+    m.proc.send_line("path = /files").unwrap();
+    m.proc.send_line("EOF").unwrap();
+
+    m.proc.exp_string("alpine:~# ").unwrap();
+    m.proc.send_line("smbpasswd -a root").unwrap();
+    m.proc.exp_string("New SMB password:").unwrap();
+    m.proc.send_line("a").unwrap();
+    m.proc.exp_string("Retype new SMB password:").unwrap();
+    m.proc.send_line("a").unwrap();
+
+    log::info!("SAMBA installed");
+
+    m.proc.exp_string("alpine:~# ").unwrap();
     m.proc.send_line("tee /etc/ssh/sshd_config <<EOF").unwrap();
     m.proc.send_line("PermitRootLogin yes").unwrap();
     m.proc.send_line("EOF").unwrap();
