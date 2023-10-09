@@ -1,6 +1,6 @@
 [package]
 name = "vm_test_fixture"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "Runs a VM for use in tests"
 license = "MIT"
