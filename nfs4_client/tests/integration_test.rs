@@ -74,17 +74,17 @@ impl<'machine> Fixture<'machine> {
             .unwrap()
     }
 
-    fn create_file_test(&mut self) {
-        self.create_file("/files/a_file");
-        self.client.look_up("/files/a_file").unwrap();
-    }
-
     //  _            _
     // | |_ ___  ___| |_ ___
     // | __/ _ \/ __| __/ __|
     // | ||  __/\__ \ |_\__ \
     //  \__\___||___/\__|___/
     //
+
+    fn create_file_test(&mut self) {
+        self.create_file("/files/a_file");
+        self.client.look_up("/files/a_file").unwrap();
+    }
 
     fn read_write_test(&mut self) {
         let handle = self.create_file("/files/a_file");
